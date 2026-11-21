@@ -52,7 +52,7 @@ chmod +x Eqo-Partitura-x86_64.AppImage
 ./Eqo-Partitura-x86_64.AppImage
 ```
 
-AppImage statik AppImage çalışma zamanını kullanır, `libfuse2` gerektirmez. Güncel x86_64 dağıtımlar için hazırlanmıştır (Ubuntu, Debian, Fedora, Arch, openSUSE, Mint …). Alpine gibi musl tabanlı sistemlerde çalışmaz. Ayrıcalıksız kullanıcı ad alanlarını engelleyen sistemlerde (ör. Ubuntu 24.04 ve sonrası) başlatıcı, uygulamayı Chromium'un işletim sistemi düzeyindeki korumalı alanı olmadan açar; *Güvenlik* bölümündeki arayüz yalıtımı yerinde kalır. Menüde görünmesini isterseniz [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) veya AppImageLauncher gibi bir araç kullanabilirsiniz.
+AppImage statik AppImage çalışma zamanını kullanır, `libfuse2` gerektirmez. Güncel x86_64 dağıtımlar için hazırlanmıştır (Ubuntu, Debian, Fedora, Arch, openSUSE, Mint …). Alpine gibi musl tabanlı sistemlerde çalışmaz. Linux'ta Chromium'da AAC kodlayıcı olmadığından MP4 videoların sesi Opus olur (tarayıcılarda, VLC'de, YouTube'da ve çoğu oynatıcıda çalışır). Ayrıcalıksız kullanıcı ad alanlarını engelleyen sistemlerde (ör. Ubuntu 24.04 ve sonrası) başlatıcı, uygulamayı Chromium'un işletim sistemi düzeyindeki korumalı alanı olmadan açar; *Güvenlik* bölümündeki arayüz yalıtımı yerinde kalır. Menüde görünmesini isterseniz [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) veya AppImageLauncher gibi bir araç kullanabilirsiniz.
 
 ## Kullanım
 

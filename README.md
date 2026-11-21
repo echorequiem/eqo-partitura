@@ -56,7 +56,7 @@ chmod +x Eqo-Partitura-x86_64.AppImage
 ./Eqo-Partitura-x86_64.AppImage
 ```
 
-The AppImage uses the static AppImage runtime, so it does not need `libfuse2`. It is meant for current x86_64 distributions (Ubuntu, Debian, Fedora, Arch, openSUSE, Mint …). It does not run on musl-based systems such as Alpine. On systems that block unprivileged user namespaces (for example Ubuntu 24.04 and later), the launcher starts the app without Chromium's OS-level sandbox; the renderer's own isolation described under *Security* stays in place. If you want a menu entry, use a tool such as [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or AppImageLauncher.
+The AppImage uses the static AppImage runtime, so it does not need `libfuse2`. It is meant for current x86_64 distributions (Ubuntu, Debian, Fedora, Arch, openSUSE, Mint …). It does not run on musl-based systems such as Alpine. On Linux, Chromium has no AAC encoder, so MP4 videos get Opus audio (plays in browsers, VLC, YouTube and most players). On systems that block unprivileged user namespaces (for example Ubuntu 24.04 and later), the launcher starts the app without Chromium's OS-level sandbox; the renderer's own isolation described under *Security* stays in place. If you want a menu entry, use a tool such as [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or AppImageLauncher.
 
 ## How to use
 
