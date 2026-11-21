@@ -1,7 +1,7 @@
 /* =================================================================================================
-   Partitura · Echo Studio — app layer on top of the shared Echo design language (diapason.css)
+   Eqo Partitura · Echo Studio — app layer on top of the shared Echo design language (diapason.css)
    diapason.css is the Echo Masterworks file, used unchanged: tokens (family colour, glass, radii, spacing,
-   motion) and the d-* components. This file only adds what Partitura needs, built from the same tokens.
+   motion) and the d-* components. This file only adds what Eqo Partitura needs, built from the same tokens.
    Rule of the system: the family colour (Studio violet) is for accents only — about 10% of the screen.
      1 shell · 2 page bar · 3 shared controls · 4 page 1 · 5 page 2 · 6 page 3 · 7 page 4 · 8 dialogs
    CRITICAL: element ids and the classes toggled from JS (active, on, disabled, hidden, dimmed, invalid,

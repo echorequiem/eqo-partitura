@@ -5,10 +5,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [1.0.0] - 2026-11-20
 
-First stable release of Partitura · Echo Studio for Windows 10 / 11 (64-bit) and Linux (x86_64).
+First stable release of Eqo Partitura · Echo Studio for Windows 10 / 11 (64-bit) and Linux (x86_64).
 
 ### Added
-- **Linux.** `Partitura-x86_64.AppImage`: a single file for any current x86_64 distribution. It uses the static
+- **Eqo Partitura.** The app is now called Eqo Partitura: "Partitura" alone was too easy to confuse with other
+  brands and apps. Files: `Eqo-Partitura.exe` and `Eqo-Partitura-x86_64.AppImage`. Saved settings and colours,
+  and the projects folder (now `~/.eqo-partitura`), move over from Partitura and Echo Notes automatically.
+- **Linux.** `Eqo-Partitura-x86_64.AppImage`: a single file for any current x86_64 distribution. It uses the static
   AppImage runtime, so it needs no libfuse2, and it falls back automatically where the system blocks Chromium's
   sandbox. Window icon and desktop entry are included. GitHub Actions builds it next to the Windows exe and starts
   it once on a virtual display as a check.

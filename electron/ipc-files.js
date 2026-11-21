@@ -44,7 +44,7 @@ export function registerFileIpc({ isAppUrl, getWindow }) {
   handle("video:open", isAppUrl, async (_e, opts) => {
     const ext = String(opts && opts.ext);
     if (!VIDEO_EXT[ext]) throw new IpcError("Unsupported video format");
-    const name = safeFileName(opts.defaultName, "Partitura").replace(/\.(mp4|webm)$/i, "") + "." + ext;
+    const name = safeFileName(opts.defaultName, "Eqo Partitura").replace(/\.(mp4|webm)$/i, "") + "." + ext;
     const win = getWindow();
     const res = await askSavePath(win, {
       defaultPath: path.join(defaultDir("video"), name),
@@ -96,7 +96,7 @@ export function registerFileIpc({ isAppUrl, getWindow }) {
     const files = Array.isArray(opts.files) ? opts.files : [];
     if (files.length === 0 || files.length > 64) throw new IpcError("Invalid image list");
     const clean = files.map((f) => {
-      const base = safeFileName(assertString(f.name, "file name", 260), "Partitura").replace(/\.[a-z0-9]{1,5}$/i, "");
+      const base = safeFileName(assertString(f.name, "file name", 260), "Eqo Partitura").replace(/\.[a-z0-9]{1,5}$/i, "");
       return { name: `${base}.${ext}`, data: assertBytes(f.data, "image", MAX_IMAGE) };
     });
 

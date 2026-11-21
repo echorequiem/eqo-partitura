@@ -1,8 +1,8 @@
 name: Release
 
 # Builds the single-file apps:
-#   Windows: Partitura.exe              (portable, x64)
-#   Linux:   Partitura-x86_64.AppImage  (static AppImage runtime, no libfuse2 needed)
+#   Windows: Eqo-Partitura.exe              (portable, x64)
+#   Linux:   Eqo-Partitura-x86_64.AppImage  (static AppImage runtime, no libfuse2 needed)
 #
 #  - tag like v1.0.0 -> both attached to a new GitHub Release (a "-" in the tag, e.g. v1.1.0-beta.1, = pre-release)
 #  - manual run (Actions tab -> Run workflow) -> build artifacts only, or, with "release_tag", add the chosen
@@ -39,7 +39,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Build Partitura.exe
+      - name: Build Eqo-Partitura.exe
         run: |
           npx vite build
           npx electron-builder --win --publish never
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: Partitura.exe
+          path: Eqo-Partitura.exe
 
   linux:
     if: github.event_name == 'push' || inputs.platforms != 'windows'
@@ -63,12 +63,12 @@ jobs:
 
       - run: npm ci
 
-      - name: Build Partitura-x86_64.AppImage
+      - name: Build Eqo-Partitura-x86_64.AppImage
         run: |
           npx vite build
           npx electron-builder --linux AppImage --x64 --publish never
           ls -la release
-          test -x release/Partitura-x86_64.AppImage
+          test -x release/Eqo-Partitura-x86_64.AppImage
 
       - name: Install a virtual display for the start-up check
         run: |
@@ -79,7 +79,7 @@ jobs:
         run: xvfb-run -a npx electron scripts/linux-codec-check.cjs
 
       - name: Start-up check (the AppImage opens its main window)
-        run: bash scripts/linux-smoke-test.sh release/Partitura-x86_64.AppImage
+        run: bash scripts/linux-smoke-test.sh release/Eqo-Partitura-x86_64.AppImage
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: release/Partitura-x86_64.AppImage
+          path: release/Eqo-Partitura-x86_64.AppImage
 
   publish:
     needs: [windows, linux]
@@ -110,7 +110,7 @@ jobs:
         run: |
           cd out
           ls -la
-          sha256sum Partitura* | tee SHA256SUMS.txt
+          sha256sum Eqo-Partitura* | tee SHA256SUMS.txt
 
       - name: New release (tag push)
         if: startsWith(github.ref, 'refs/tags/v')
@@ -119,8 +119,8 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            out/Partitura.exe
-            out/Partitura-x86_64.AppImage
+            out/Eqo-Partitura.exe
+            out/Eqo-Partitura-x86_64.AppImage
 
       - name: Add files to an existing release (manual run)
         if: inputs.release_tag != ''
@@ -130,6 +130,6 @@ jobs:
         run: |
           cd out
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
-          for f in Partitura.exe Partitura-x86_64.AppImage; do
+          for f in Eqo-Partitura.exe Eqo-Partitura-x86_64.AppImage; do
             if [ -f "$f" ]; then gh release upload "$TAG" "$f" --clobber --repo "$GITHUB_REPOSITORY"; fi
           done

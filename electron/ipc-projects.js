@@ -24,21 +24,25 @@ const ALLOWED_EXT = {
 function baseDir() {
   // ECHO_E2E_USER_DATA: automated tests keep their projects in their own profile (ignored in packaged builds)
   if (!app.isPackaged && process.env.ECHO_E2E_USER_DATA) return path.join(process.env.ECHO_E2E_USER_DATA, "projects");
-  const dir = path.join(app.getPath("home"), ".partitura", "projects");
+  const dir = path.join(app.getPath("home"), ".eqo-partitura", "projects");
   migrateOldProjects(dir);
   return dir;
 }
 
-// Echo Notes was renamed to Partitura: move the old project folder once (same drive, so a rename).
+// Echo Notes -> Partitura -> Eqo Partitura: move the newest old project folder once (same drive, so a rename).
 let migrated = false;
 function migrateOldProjects(dir) {
   if (migrated) return;
   migrated = true;
-  const old = path.join(app.getPath("home"), ".echo-notes");
-  try {
-    if (!fs.existsSync(path.dirname(dir)) && fs.existsSync(old)) fs.renameSync(old, path.dirname(dir));
-  } catch (err) {
-    console.warn("[projects] could not move ~/.echo-notes:", err.code);
+  const target = path.dirname(dir);
+  if (fs.existsSync(target)) return;
+  for (const name of [".partitura", ".echo-notes"]) {
+    const old = path.join(app.getPath("home"), name);
+    try {
+      if (fs.existsSync(old)) { fs.renameSync(old, target); return; }
+    } catch (err) {
+      console.warn(`[projects] could not move ~/${name}:`, err.code);
+    }
   }
 }
 

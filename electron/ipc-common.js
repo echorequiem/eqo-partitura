@@ -24,7 +24,7 @@ export function assertBytes(v, name, maxBytes) {
 }
 
 /** Windows-safe file name (no folders, no reserved characters). */
-export function safeFileName(name, fallback = "Partitura") {
+export function safeFileName(name, fallback = "Eqo Partitura") {
   let s = String(name || "").replace(/[\\/:*?"<>|\u0000-\u001f]+/g, "_").replace(/^[.\s]+|[.\s]+$/g, "");
   if (!s) s = fallback;
   if (/^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(s)) s = "_" + s;

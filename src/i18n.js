@@ -1,4 +1,4 @@
-// i18n.js — Partitura çeviri sözlüğü (10 dil)
+// i18n.js — Eqo Partitura çeviri sözlüğü (10 dil)
 // Kural: her dilde AYNI anahtarlar bulunmalıdır. Yer tutucular {ad} biçimindedir.
 
 export const LANGUAGES = ["tr", "en", "de", "fr", "es", "it", "pt", "ru", "ja", "zh"];

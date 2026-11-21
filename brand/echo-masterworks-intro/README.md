@@ -15,7 +15,7 @@ import { playEchoIntro } from "./echo-masterworks-intro/echoIntro.js";
 import logoUrl from "./echo-masterworks-intro/assets/echo-masterworks-seal.png";
 import soundUrl from "./echo-masterworks-intro/assets/echo-masterworks-sound.flac";
 
-await playEchoIntro({ mount: document.body, logoUrl, emblemRadius: 0.366, aspect: "1/1", soundUrl, title: "Partitura", subtitle: "Echo Studio" });
+await playEchoIntro({ mount: document.body, logoUrl, emblemRadius: 0.366, aspect: "1/1", soundUrl, title: "Eqo Partitura", subtitle: "Echo Studio" });
 // -> open the main window here
 ```
 
@@ -30,7 +30,7 @@ The animation is time-based: a dropped frame never slows it down or shifts it ag
 
 The sound must be allowed to play without a click:
 `webPreferences: { autoplayPolicy: "no-user-gesture-required" }` on the splash window.
-Partitura signals via `document.title` ("echo:start", "echo:done"); the main process listens to
+Eqo Partitura signals via `document.title` ("echo:start", "echo:done"); the main process listens to
 `page-title-updated`, and calls `window.__echoGo()` in the splash once the main window has loaded
 (see `electron/main.js` and `src/splash.js`).
 

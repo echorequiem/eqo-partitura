@@ -1,5 +1,5 @@
 // CI only (release workflow, Linux): which WebCodecs encoders this Electron offers on Linux.
-// Partitura picks MP4 (H.264 + AAC), falls back to Opus audio in MP4 and to WebM (VP9 + Opus) by itself;
+// Eqo Partitura picks MP4 (H.264 + AAC), falls back to Opus audio in MP4 and to WebM (VP9 + Opus) by itself;
 // this prints what will be used, so a release log shows it. Exits 1 only if NO video encoder works.
 // Run: xvfb-run -a npx electron scripts/linux-codec-check.cjs
 const { app, BrowserWindow } = require("electron");
@@ -18,7 +18,7 @@ const PROBE = `(async () => {
 })()`;
 
 app.whenReady().then(async () => {
-  const file = path.join(os.tmpdir(), "partitura-codec-check.html");
+  const file = path.join(os.tmpdir(), "eqo-partitura-codec-check.html");
   fs.writeFileSync(file, "<!doctype html><title>codec check</title>");
   const win = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } });
   await win.loadFile(file);

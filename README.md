@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="build/icon.png" width="96" alt="Partitura icon" />
+  <img src="build/icon.png" width="96" alt="Eqo Partitura icon" />
 </p>
 
-<h1 align="center">Partitura</h1>
+<h1 align="center">Eqo Partitura</h1>
 
-<p align="center"><b>Partitura · Echo Studio</b> — Echo Masterworks</p>
+<p align="center"><b>Eqo Partitura · Echo Studio</b> — Echo Masterworks</p>
 
 <p align="center">
   Turn a MusicXML score into a smooth, scrolling sheet-music video — with the active notes glowing in the color you choose.<br/>
@@ -44,16 +44,16 @@ Get the latest build from the **[Releases](../../releases)** page. Both are sing
 
 | System | File | |
 | --- | --- | --- |
-| Windows 10 / 11 (x64) | **`Partitura.exe`** | Double-click to run. |
-| Linux (x86_64), any distribution | **`Partitura-x86_64.AppImage`** | Make it executable, then double-click or run it. |
+| Windows 10 / 11 (x64) | **`Eqo-Partitura.exe`** | Double-click to run. |
+| Linux (x86_64), any distribution | **`Eqo-Partitura-x86_64.AppImage`** | Make it executable, then double-click or run it. |
 
 > **Windows:** the builds are not code-signed yet, so SmartScreen may show *"Windows protected your PC"*. Click **More info → Run anyway**.
 
 **Linux:** in the file manager open *Properties → Permissions* and tick *Allow executing file as program*, or in a terminal:
 
 ```bash
-chmod +x Partitura-x86_64.AppImage
-./Partitura-x86_64.AppImage
+chmod +x Eqo-Partitura-x86_64.AppImage
+./Eqo-Partitura-x86_64.AppImage
 ```
 
 The AppImage uses the static AppImage runtime, so it does not need `libfuse2`. It is meant for current x86_64 distributions (Ubuntu, Debian, Fedora, Arch, openSUSE, Mint …). It does not run on musl-based systems such as Alpine. On systems that block unprivileged user namespaces (for example Ubuntu 24.04 and later), the launcher starts the app without Chromium's OS-level sandbox; the renderer's own isolation described under *Security* stays in place. If you want a menu entry, use a tool such as [Gear Lever](https://flathub.org/apps/it.mijorus.gearlever) or AppImageLauncher.
@@ -67,7 +67,7 @@ The AppImage uses the static AppImage runtime, so it does not need `libfuse2`. I
 
 Keyboard shortcuts: <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> previous/next note · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Home</kbd>/<kbd>End</kbd> start/end · <kbd>Ctrl</kbd>+<kbd>S</kbd> save project · <kbd>Esc</kbd> close dialog.
 
-Projects are stored in `%USERPROFILE%\.partitura\projects` on Windows and `~/.partitura/projects` on Linux.
+Projects are stored in `%USERPROFILE%\.eqo-partitura\projects` on Windows and `~/.eqo-partitura/projects` on Linux.
 
 ## Building from source
 
@@ -76,8 +76,8 @@ Requirements: [Node.js](https://nodejs.org/) 20 or newer. Build the `.exe` on Wi
 ```bash
 npm install
 npm run dev          # Vite + Electron with hot reload (alias: npm run electron:dev)
-npm run dist:win     # Windows -> "Partitura.exe" in the project folder (build leftovers are removed)
-npm run dist:linux   # Linux   -> release/Partitura-x86_64.AppImage
+npm run dist:win     # Windows -> "Eqo-Partitura.exe" in the project folder (build leftovers are removed)
+npm run dist:linux   # Linux   -> release/Eqo-Partitura-x86_64.AppImage
 ```
 
 Other scripts:
@@ -85,7 +85,7 @@ Other scripts:
 - `npm run build` builds the UI bundle only.
 - `npm run web` opens the UI in a normal browser (project saving is off in this mode).
 
-Pushing a tag such as `v1.0.0` makes GitHub Actions build `Partitura.exe` and `Partitura-x86_64.AppImage`, start the AppImage once as a check, and attach both to a GitHub Release (see `.github/workflows/release.yml`).
+Pushing a tag such as `v1.0.0` makes GitHub Actions build `Eqo-Partitura.exe` and `Eqo-Partitura-x86_64.AppImage`, start the AppImage once as a check, and attach both to a GitHub Release (see `.github/workflows/release.yml`).
 
 ## Contributing
 
@@ -105,7 +105,7 @@ src/                 Renderer (sandboxed, no Node.js access)
   platform/          Project storage client and file output (desktop + browser fallback)
   ui/                Dialogs, language menu, colour picker, interface sounds
   styles/            Diapason design language, app stylesheet and embedded fonts
-  assets/brand/      Partitura / Echo Studio / Echo Masterworks marks
+  assets/brand/      Eqo Partitura / Echo Studio / Echo Masterworks marks
 build/               Packaging resources (icon.ico, icon.png)
 brand/               Echo Masterworks intro animation (logo + sound), reusable in other apps
 scripts/             dev launcher, exe collector
@@ -127,4 +127,4 @@ docs/screenshots/    README images
 
 The source code is released under the [MIT](LICENSE) license © 2026 Echo Masterworks.
 
-The names **Partitura**, **Echo Studio** and **Echo Masterworks** and their logos, icons and intro sound (`brand/`, `src/assets/brand/`, `build/icon.*`) identify the official app and are not covered by the MIT license. You may use them unchanged to build and run this project. If you publish a modified version, please give it your own name and icon.
+The names **Eqo Partitura**, **Echo Studio** and **Echo Masterworks** and their logos, icons and intro sound (`brand/`, `src/assets/brand/`, `build/icon.*`) identify the official app and are not covered by the MIT license. You may use them unchanged to build and run this project. If you publish a modified version, please give it your own name and icon.

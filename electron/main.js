@@ -59,14 +59,18 @@ if (!app.isPackaged && process.env.ECHO_E2E_USER_DATA) {
   migrateOldProfile();
 }
 
-/** Echo Notes was renamed to Partitura: copy its profile (saved colours, settings) once, before anything uses it. */
+/** Echo Notes -> Partitura -> Eqo Partitura: copy the newest old profile (saved colours, settings) once,
+ *  before anything uses it. */
 function migrateOldProfile() {
-  try {
-    const now = app.getPath("userData");
-    const old = path.join(app.getPath("appData"), "Echo Notes");
-    if (!fs.existsSync(now) && fs.existsSync(old)) fs.cpSync(old, now, { recursive: true, errorOnExist: false });
-  } catch (err) {
-    console.warn("[profile] could not copy the Echo Notes profile:", err.code);
+  const now = app.getPath("userData");
+  if (fs.existsSync(now)) return;
+  for (const name of ["Partitura", "Echo Notes"]) {
+    try {
+      const old = path.join(app.getPath("appData"), name);
+      if (fs.existsSync(old)) { fs.cpSync(old, now, { recursive: true, errorOnExist: false }); return; }
+    } catch (err) {
+      console.warn(`[profile] could not copy the ${name} profile:`, err.code);
+    }
   }
 }
 
@@ -156,7 +160,7 @@ function createSplash() {
     skipTaskbar: true,
     backgroundColor: "#0b090f",
     ...(icon ? { icon } : {}),
-    title: "Partitura",
+    title: "Eqo Partitura",
     webPreferences: { ...secureWebPreferences(), autoplayPolicy: "no-user-gesture-required" }
   });
   const markDone = () => {
@@ -212,7 +216,7 @@ function createWindow({ withSplash = false } = {}) {
     ...(icon ? { icon } : {}),
     backgroundColor: "#0b090f",
     autoHideMenuBar: true,
-    title: "Partitura",
+    title: "Eqo Partitura",
     webPreferences: {
       ...secureWebPreferences(),
       preload: path.join(__dirname, "preload.cjs"),
@@ -305,7 +309,7 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
-    if (process.platform === "win32") app.setAppUserModelId("com.echomasterworks.partitura");
+    if (process.platform === "win32") app.setAppUserModelId("com.echomasterworks.eqopartitura");
     if (app.isPackaged) Menu.setApplicationMenu(null); // no reload / devtools shortcuts in release builds
 
     registerAppProtocol();

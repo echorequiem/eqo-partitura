@@ -122,7 +122,7 @@ function OffscreenCanvasOr(w, h) {
  * @param {HTMLElement} o.mount
  * @param {string} o.logoUrl   logo artwork (light lines on a dark backdrop)
  * @param {string} [o.soundUrl] sound; its silence is skipped automatically and its hits trigger echo rings
- * @param {string} [o.title]   app name under the logo, e.g. "Partitura"
+ * @param {string} [o.title]   app name under the logo, e.g. "Eqo Partitura"
  * @param {string} [o.subtitle] small line under the title, e.g. the family "Echo Studio"
  * @param {number} [o.emblemRadius] emblem radius as a fraction of the artwork height (default 0.38)
  * @param {string} [o.aspect]  artwork aspect ratio for the stage, e.g. "1/1" (default "1376/768")

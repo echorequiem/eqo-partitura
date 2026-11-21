@@ -1,5 +1,5 @@
 // Splash window: the shared Echo Masterworks intro (brand/echo-masterworks-intro) with the coloured seal,
-// introducing "Partitura · Echo Studio".
+// introducing "Eqo Partitura · Echo Studio".
 // CRITICAL: electron/main.js shows this window on title "echo:start" and opens the main window on "echo:done".
 import "./styles/diapason.css"; // Diapason font for the title (loaded locally)
 import "./styles/splash.css";
@@ -22,7 +22,7 @@ playEchoIntro({
   emblemRadius: 0.366, // seal: outer ring r = 326 of 2048 × 2.3 scale
   aspect: "1/1",
   soundUrl,
-  title: "Partitura",
+  title: "Eqo Partitura",
   subtitle: "Echo Studio",
   accent: "#9A15EE", // Echo Studio
   ready: go,

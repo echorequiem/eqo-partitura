@@ -1,21 +1,21 @@
 {
-  "name": "partitura",
-  "productName": "Partitura",
+  "name": "eqo-partitura",
+  "productName": "Eqo Partitura",
   "version": "1.0.0",
-  "description": "Partitura · Echo Studio — turn MusicXML scores into scrolling, highlighted sheet-music videos (MP4 / WebM).",
+  "description": "Eqo Partitura · Echo Studio — turn MusicXML scores into scrolling, highlighted sheet-music videos (MP4 / WebM).",
   "author": {
     "name": "Echo Masterworks"
   },
   "license": "MIT",
-  "homepage": "https://github.com/echorequiem/partitura",
+  "homepage": "https://github.com/echorequiem/eqo-partitura",
   "repository": {
     "type": "git",
-    "url": "https://github.com/echorequiem/partitura.git"
+    "url": "https://github.com/echorequiem/eqo-partitura.git"
   },
   "bugs": {
-    "url": "https://github.com/echorequiem/partitura/issues"
+    "url": "https://github.com/echorequiem/eqo-partitura/issues"
   },
-  "desktopName": "partitura.desktop",
+  "desktopName": "eqo-partitura.desktop",
   "private": true,
   "type": "module",
   "main": "electron/main.js",
@@ -46,9 +46,9 @@
     "webm-muxer": "^5.1.4"
   },
   "build": {
-    "appId": "com.echomasterworks.partitura",
-    "productName": "Partitura",
-    "executableName": "Partitura",
+    "appId": "com.echomasterworks.eqopartitura",
+    "productName": "Eqo Partitura",
+    "executableName": "Eqo Partitura",
     "copyright": "Copyright © 2026 Echo Masterworks",
     "directories": {
       "output": "release",
@@ -65,17 +65,17 @@
       "appimage": "1.0.3"
     },
     "linux": {
-      "executableName": "partitura",
+      "executableName": "eqo-partitura",
       "icon": "build/icon.png",
       "category": "AudioVideo",
       "synopsis": "Turn MusicXML scores into glowing sheet-music videos",
-      "description": "Partitura · Echo Studio turns MusicXML scores into scrolling sheet-music videos with glowing notes (MP4 / WebM).",
+      "description": "Eqo Partitura · Echo Studio turns MusicXML scores into scrolling sheet-music videos with glowing notes (MP4 / WebM).",
       "maintainer": "Echo Masterworks",
       "vendor": "Echo Masterworks",
       "syncDesktopName": true,
       "desktop": {
         "entry": {
-          "Name": "Partitura",
+          "Name": "Eqo Partitura",
           "GenericName": "Sheet music video maker",
           "Keywords": "music;score;sheet;MusicXML;video;notation;"
         }
@@ -90,7 +90,7 @@
       ]
     },
     "appImage": {
-      "artifactName": "Partitura-x86_64.AppImage"
+      "artifactName": "Eqo-Partitura-x86_64.AppImage"
     },
     "win": {
       "icon": "build/icon.ico",
@@ -104,7 +104,7 @@
       ]
     },
     "portable": {
-      "artifactName": "Partitura.exe"
+      "artifactName": "Eqo-Partitura.exe"
     }
   }
 }

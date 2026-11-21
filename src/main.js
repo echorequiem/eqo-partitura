@@ -269,7 +269,7 @@ function notify(message, kind = "info") {
 }
 
 function baseNameOfMusic() {
-  return (appState.musicFileName || "").replace(/\.[^/.]+$/, "") || "Partitura";
+  return (appState.musicFileName || "").replace(/\.[^/.]+$/, "") || "Eqo Partitura";
 }
 
 function formatSeconds(s) {
@@ -2495,14 +2495,14 @@ function init() {
     const m = /^(\d+\.\d+\.\d+)-beta\.?(\d+)?$/i.exec(info.version);
     appVersionEl.textContent = m ? `v${m[1]} Beta${m[2] ? " " + m[2] : ""}` : `v${info.version}`;
     appVersionEl.classList.toggle("is-beta", !!m);
-    appVersionEl.title = `Partitura · Echo Studio ${info.version}`;
+    appVersionEl.title = `Eqo Partitura · Echo Studio ${info.version}`;
   });
 }
 
 try {
   init();
 } catch (err) {
-  console.error("Partitura başlatılamadı:", err);
+  console.error("Eqo Partitura başlatılamadı:", err);
 }
 
 // Tell the main process the first complete frame is drawn (fonts in, layout done) — it then fades the window in.

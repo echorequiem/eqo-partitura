@@ -1058,7 +1058,7 @@ export class RenderEngine {
     }
   }
 
-  async startRender({ width, height, fps, format = "mp4", baseName = "Partitura", openSink, audio = null, cards = null, fx = null, leadIn = true }, onProgress) {
+  async startRender({ width, height, fps, format = "mp4", baseName = "Eqo Partitura", openSink, audio = null, cards = null, fx = null, leadIn = true }, onProgress) {
     const emit = (info) => { if (onProgress) onProgress(info); };
 
     if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") {
@@ -1093,7 +1093,7 @@ export class RenderEngine {
       const audioCands = {};
       let audioDropped = false;
 
-      const safeBase = String(baseName || "Partitura").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80) || "Partitura";
+      const safeBase = String(baseName || "Eqo Partitura").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80) || "Eqo Partitura";
       const defaultName = `${safeBase}_${W}x${H}_${fps}fps`;
 
       let result = null;
@@ -1306,7 +1306,7 @@ export class RenderEngine {
 
   // ---- Score strip image (PNG / JPEG / WebP / SVG) ----------------------------------------------
   /** @param bgBlur  raster formats: put the background photo, blurred, behind the strip */
-  async exportStrip({ format, baseName = "Partitura_Score", bgBlur = false }) {
+  async exportStrip({ format, baseName = "Eqo_Partitura_Score", bgBlur = false }) {
     const layout = this.getLayout ? this.getLayout() : null;
     const svgEl = this.osmdContainer.querySelector("svg");
     if (!svgEl || !layout || !(layout.svgW > 0) || !(layout.svgH > 0)) throw new RenderError("NO_LAYOUT");

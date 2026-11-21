@@ -23,8 +23,8 @@ try {
   await server.listen();
 } catch (err) {
   if (String(err && err.message).includes("already in use")) {
-    console.error(`\n[partitura] Port ${PORT} is already in use.`);
-    console.error("[partitura] An older dev server is probably still running. Close it (Task Manager > node.exe) and try again.\n");
+    console.error(`\n[eqo-partitura] Port ${PORT} is already in use.`);
+    console.error("[eqo-partitura] An older dev server is probably still running. Close it (Task Manager > node.exe) and try again.\n");
     process.exit(1);
   }
   throw err;

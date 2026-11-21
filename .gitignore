@@ -6,6 +6,7 @@ dist/
 dist-ssr/
 release/
 *.blockmap
+Eqo-Partitura.exe
 Partitura.exe
 *.AppImage
 smoke/

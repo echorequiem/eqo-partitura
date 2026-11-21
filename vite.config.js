@@ -18,7 +18,7 @@ const CSP_PROD = [
 ].join("; ");
 
 const cspMeta = {
-  name: "partitura-csp-meta",
+  name: "eqo-partitura-csp-meta",
   apply: "build",
   transformIndexHtml() {
     return [{ tag: "meta", attrs: { "http-equiv": "Content-Security-Policy", content: CSP_PROD }, injectTo: "head-prepend" }];

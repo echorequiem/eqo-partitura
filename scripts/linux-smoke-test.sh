@@ -2,7 +2,7 @@
 # CI only (release workflow, Linux): start the built AppImage on a virtual display and check that the
 # MAIN window (1300 x 800, shown only after the splash and once the UI is drawn) appears and stays open.
 # Saves screenshots and the app log to smoke/.  Needs: Xvfb, xdotool, imagemagick.
-# Usage: bash scripts/linux-smoke-test.sh release/Partitura-x86_64.AppImage
+# Usage: bash scripts/linux-smoke-test.sh release/Eqo-Partitura-x86_64.AppImage
 set -u
 APPIMAGE="$(readlink -f "$1")"
 mkdir -p smoke
