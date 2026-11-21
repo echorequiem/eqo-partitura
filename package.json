@@ -1,0 +1,110 @@
+{
+  "name": "partitura",
+  "productName": "Partitura",
+  "version": "1.0.0",
+  "description": "Partitura · Echo Studio — turn MusicXML scores into scrolling, highlighted sheet-music videos (MP4 / WebM).",
+  "author": {
+    "name": "Echo Masterworks"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/echorequiem/partitura",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/echorequiem/partitura.git"
+  },
+  "bugs": {
+    "url": "https://github.com/echorequiem/partitura/issues"
+  },
+  "desktopName": "partitura.desktop",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "electron:dev": "node scripts/dev.js",
+    "web": "vite",
+    "build": "vite build",
+    "dist:win": "vite build && electron-builder --win && node scripts/collect-exe.mjs",
+    "build:win": "npm run dist:win",
+    "dist:linux": "vite build && electron-builder --linux AppImage --x64"
+  },
+  "devDependencies": {
+    "@fontsource-variable/cormorant-garamond": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/noto-sans-jp": "^5.3.1",
+    "@fontsource-variable/noto-sans-sc": "^5.3.1",
+    "@fontsource-variable/playfair-display": "^5.3.0",
+    "@vexflow-fonts/edwin": "^1.0.1",
+    "electron": "^45.3.2",
+    "electron-builder": "^26.18.0",
+    "mp4-muxer": "^5.2.2",
+    "opensheetmusicdisplay": "^2.3.1",
+    "vite": "^8.3.6",
+    "webm-muxer": "^5.1.4"
+  },
+  "build": {
+    "appId": "com.echomasterworks.partitura",
+    "productName": "Partitura",
+    "executableName": "Partitura",
+    "copyright": "Copyright © 2026 Echo Masterworks",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "toolsets": {
+      "appimage": "1.0.3"
+    },
+    "linux": {
+      "executableName": "partitura",
+      "icon": "build/icon.png",
+      "category": "AudioVideo",
+      "synopsis": "Turn MusicXML scores into glowing sheet-music videos",
+      "description": "Partitura · Echo Studio turns MusicXML scores into scrolling sheet-music videos with glowing notes (MP4 / WebM).",
+      "maintainer": "Echo Masterworks",
+      "vendor": "Echo Masterworks",
+      "syncDesktopName": true,
+      "desktop": {
+        "entry": {
+          "Name": "Partitura",
+          "GenericName": "Sheet music video maker",
+          "Keywords": "music;score;sheet;MusicXML;video;notation;"
+        }
+      },
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "appImage": {
+      "artifactName": "Partitura-x86_64.AppImage"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "Partitura.exe"
+    }
+  }
+}

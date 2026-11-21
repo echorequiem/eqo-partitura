@@ -1,0 +1,278 @@
+/* ==========================================================================
+   DIAPASON · Echo Masterworks ortak tasarım dili
+   --------------------------------------------------------------------------
+   Bütün Echo uygulamaları bu tek dosyayı kullanır. Uygulamalar arasında
+   değişen TEK şey aile rengidir; geri kalan her şey (zemin, yazı, cam
+   yüzeyler, köşeler, boşluklar, hareket) ortaktır.
+
+   Kullanım:
+     <html data-family="studio" data-theme="dark">
+       <link rel="stylesheet" href="diapason.css">
+
+   data-family : requiem | studio | song | game | apps | soft
+   data-theme  : dark (varsayılan) | light
+   Yazı tipi    : Diapason (bizim yerel fontumuz) → fontlar/ klasörü bu dosyanın yanında durmalı.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   0. YAZI TİPİ: DIAPASON (yerel, internet gerektirmez)
+   Times New Roman tarzı klasik serif (temel: Tinos, SIL Open Font License 1.1).
+   Stiller: Normal · Kalın · İtalik · Kalın İtalik
+   -------------------------------------------------------------------------- */
+@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-Regular.woff2") format("woff2"); font-weight: 100 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-Bold.woff2") format("woff2"); font-weight: 600 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-Italic.woff2") format("woff2"); font-weight: 100 500; font-style: italic; font-display: swap; }
+@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-BoldItalic.woff2") format("woff2"); font-weight: 600 900; font-style: italic; font-display: swap; }
+
+/* --------------------------------------------------------------------------
+   1. AİLE RENKLERİ  (renkler/palet.css ile birebir aynı)
+   Kural: aile rengi yalnızca VURGU içindir (butonlar, seçili durum, odak,
+   ilerleme, küçük ışıltılar). Yazılar ve yüzeyler her zaman nötrdür.
+   -------------------------------------------------------------------------- */
+:root,
+[data-family="requiem"] { --ana: #48FCFC; --isik: #D7FEFE; --isima: #38C5C5; --derin: #0C1E20; --on-ana: #04191A; }
+[data-family="studio"]  { --ana: #9A15EE; --isik: #E9CCFB; --isima: #7810BA; --derin: #14071E; --on-ana: #FFFFFF; }
+[data-family="song"]    { --ana: #72FA78; --isik: #E0FEE1; --isima: #59C35E; --derin: #101E12; --on-ana: #06180A; }
+[data-family="game"]    { --ana: #FD3D38; --isik: #FFD4D3; --isima: #C5302C; --derin: #1E0B0C; --on-ana: #FFFFFF; }
+[data-family="apps"]    { --ana: #FE9154; --isik: #FFE7D9; --isima: #C67142; --derin: #1E130F; --on-ana: #1E0C02; }
+[data-family="soft"]    { --ana: #FFFFFF; --isik: #FFFFFF; --isima: #B9C4D0; --derin: #0B0C0F; --on-ana: #0B0C0F; }
+
+/* --------------------------------------------------------------------------
+   2. ORTAK TEMELLER (tüm aileler için aynı)
+   -------------------------------------------------------------------------- */
+:root {
+  /* yazı */
+  /* Diapason: tüm Latin alfabeli diller + Yunanca + Kiril. Kapsamadığı nadir karakterler
+     (Arapça, Ermenice, tarihî harfler, ₿ ...) sıradaki yedek fontlardan otomatik gelir. */
+  --font: "Diapason", "Noto Serif", "Times New Roman", Times, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-base: 16px;
+  --fs-lg: 20px; --fs-xl: 28px; --fs-2xl: 40px; --fs-3xl: 56px;
+
+  /* boşluk: 4'lük ızgara */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+
+  /* köşeler — "Echo kesiği": büyük yüzeylerde sol alt köşe küçüktür */
+  --r-sm: 10px; --r-md: 16px; --r-lg: 22px; --r-xl: 28px; --r-pill: 999px;
+  --r-cut: 10px;
+
+  /* hareket: yumuşak, yay gibi; asla sert değil */
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --ease-in: cubic-bezier(.7, 0, .84, 0);
+  --t-fast: 200ms; --t-med: 450ms; --t-slow: 800ms;
+
+  /* cam */
+  --blur: 22px;
+}
+
+/* KOYU tema (varsayılan) — zemine aile renginin derin tonu çok az karışır */
+:root, [data-theme="dark"] {
+  --bg: color-mix(in srgb, var(--derin) 55%, #07090B);
+  --bg-2: color-mix(in srgb, var(--derin) 70%, #0B0D10);
+  --text: #EEF2F3;
+  --muted: rgba(238, 242, 243, .62);
+  --soft: rgba(238, 242, 243, .40);
+  --line: rgba(255, 255, 255, .08);
+  --line-2: rgba(255, 255, 255, .16);
+  --glass: rgba(18, 22, 26, .55);
+  --glass-hi: rgba(255, 255, 255, .08);
+  --chip: rgba(255, 255, 255, .06);
+  --chip-2: rgba(255, 255, 255, .11);
+  --shadow: rgba(0, 0, 0, .45);
+  --accent-text: color-mix(in srgb, var(--ana) 72%, #FFFFFF); /* koyu zeminde okunur vurgu yazısı */
+}
+/* AÇIK tema */
+[data-theme="light"] {
+  --bg: color-mix(in srgb, var(--isik) 25%, #EEF3F4);
+  --bg-2: #FFFFFF;
+  --text: #10181C;
+  --muted: rgba(16, 24, 28, .64);
+  --soft: rgba(16, 24, 28, .44);
+  --line: rgba(16, 24, 28, .09);
+  --line-2: rgba(16, 24, 28, .18);
+  --glass: rgba(255, 255, 255, .62);
+  --glass-hi: rgba(255, 255, 255, .7);
+  --chip: rgba(16, 24, 28, .05);
+  --chip-2: rgba(16, 24, 28, .10);
+  --shadow: rgba(30, 50, 60, .14);
+  --accent-text: color-mix(in srgb, var(--ana) 70%, #10181C);  /* açık zeminde okunur vurgu yazısı */
+}
+/* beyaz aile (Echo Soft) açık temada vurguyu koyu kullanır */
+[data-theme="light"][data-family="soft"], [data-theme="light"] [data-family="soft"] {
+  --ana: #10181C; --isima: #2A3540; --on-ana: #FFFFFF; --accent-text: #10181C;
+}
+
+/* --------------------------------------------------------------------------
+   3. TABAN
+   -------------------------------------------------------------------------- */
+.d-app {
+  min-height: 100%;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% -10%, color-mix(in srgb, var(--ana) 10%, transparent), transparent 70%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.d-app *, .d-app *::before, .d-app *::after { box-sizing: border-box; }
+/* PERF: not inside SVG — on a large SVG (a score: thousands of nodes) "::selection" on every node made each
+   re-show ~20–25 ms slower. Text in SVG is not selected anyway. */
+.d-app :not(svg, svg *)::selection { background: color-mix(in srgb, var(--ana) 35%, transparent); }
+.d-app :focus-visible { outline: 2px solid var(--ana); outline-offset: 3px; border-radius: 8px; }
+
+/* yazı stilleri */
+.d-display { font-size: var(--fs-3xl); font-weight: 600; letter-spacing: -.03em; line-height: 1.02; }
+.d-title   { font-size: var(--fs-xl);  font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+.d-heading { font-size: var(--fs-lg);  font-weight: 600; letter-spacing: -.01em; line-height: 1.25; }
+.d-body    { font-size: var(--fs-md);  color: var(--muted); }
+.d-label   { font-size: var(--fs-xs);  font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); }
+.d-accent  { color: var(--accent-text); }
+.d-mono    { font-family: var(--font-mono); font-size: var(--fs-sm); }
+
+/* --------------------------------------------------------------------------
+   4. YÜZEYLER
+   -------------------------------------------------------------------------- */
+/* buzlu cam: üst çubuklar, açılır paneller, diyaloglar (az sayıda, hareketsiz zeminde) */
+.d-glass {
+  position: relative;
+  background: linear-gradient(155deg, var(--glass-hi) 0%, transparent 45%), var(--glass);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+  backdrop-filter: blur(var(--blur)) saturate(160%);
+  box-shadow: inset 0 1px 0 var(--glass-hi), inset 0 0 0 1px var(--line), 0 24px 60px var(--shadow);
+}
+/* kart: listeler ve içerik blokları (bulanıklıksız → çok sayıda kullanılabilir) */
+.d-card {
+  position: relative;
+  padding: var(--s-5);
+  border-radius: var(--r-xl) var(--r-xl) var(--r-xl) var(--r-cut);   /* Echo kesiği */
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ana) 6%, transparent), transparent 55%), var(--chip);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow var(--t-med) var(--ease), transform var(--t-med) var(--ease);
+}
+.d-card.is-hover:hover { box-shadow: inset 0 0 0 1px var(--line-2); transform: translateY(-2px); }
+.d-divider { height: 1px; background: var(--line); border: 0; margin: var(--s-4) 0; }
+
+/* üst çubuk */
+.d-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+  padding: 10px 14px 10px 20px; border-radius: var(--r-lg);
+}
+.d-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: var(--fs-md); }
+.d-brand img { width: 26px; height: 26px; }
+.d-brand small { font-weight: 500; color: var(--soft); font-size: var(--fs-xs); }
+
+/* --------------------------------------------------------------------------
+   5. İMZA: KÖŞE ÇERÇEVELERİ
+   Seçili/odaklı öğenin dört köşesinde ince çizgiler belirir; çizgiler
+   öğenin köşe yuvarlaklığını takip eder. Echo'nun tanınan detayı budur.
+   Kullanım: öğeye .d-bracket ekle (+ .is-on ile sürekli görünür).
+   -------------------------------------------------------------------------- */
+.d-bracket { position: relative; --gap: 7px; --cs: 30px; --br: var(--r-xl); }
+.d-bracket::after {
+  content: ""; position: absolute; inset: calc(var(--gap) * -1); pointer-events: none;
+  border: 1.4px solid var(--accent-text);
+  border-radius: calc(var(--br) + var(--gap));
+  -webkit-mask:
+    linear-gradient(#000 0 0) top left / var(--cs) var(--cs) no-repeat,
+    linear-gradient(#000 0 0) top right / var(--cs) var(--cs) no-repeat,
+    linear-gradient(#000 0 0) bottom left / var(--cs) var(--cs) no-repeat,
+    linear-gradient(#000 0 0) bottom right / var(--cs) var(--cs) no-repeat;
+          mask:
+    linear-gradient(#000 0 0) top left / var(--cs) var(--cs) no-repeat,
+    linear-gradient(#000 0 0) top right / var(--cs) var(--cs) no-repeat,
+    linear-gradient(#000 0 0) bottom left / var(--cs) var(--cs) no-repeat,
+    linear-gradient(#000 0 0) bottom right / var(--cs) var(--cs) no-repeat;
+  opacity: 0; transform: scale(.985);
+  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease);
+}
+.d-bracket:hover::after, .d-bracket:focus-visible::after, .d-bracket.is-on::after { opacity: .9; transform: none; }
+.d-card.d-bracket { --br: var(--r-xl); }
+
+/* --------------------------------------------------------------------------
+   6. KONTROLLER
+   -------------------------------------------------------------------------- */
+.d-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 18px; border: 0; border-radius: var(--r-pill);
+  font: 600 var(--fs-md) / 1 var(--font); color: var(--text); cursor: pointer;
+  background: var(--chip); box-shadow: inset 0 0 0 1px var(--line);
+  transition: background var(--t-med) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-med) var(--ease);
+}
+.d-btn:hover { background: var(--chip-2); }
+.d-btn:active { transform: scale(.97); }
+.d-btn svg { width: 16px; height: 16px; }
+/* ana eylem: ekranda en fazla bir tane */
+.d-btn.is-primary {
+  background: var(--ana); color: var(--on-ana);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ana) 60%, transparent), 0 8px 28px color-mix(in srgb, var(--ana) 32%, transparent);
+}
+.d-btn.is-primary:hover { background: color-mix(in srgb, var(--ana) 85%, #fff); }
+.d-btn.is-ghost { background: transparent; box-shadow: none; color: var(--muted); }
+.d-btn.is-ghost:hover { color: var(--text); background: var(--chip); }
+.d-btn.is-icon { width: 40px; padding: 0; }
+
+.d-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px;
+  border-radius: var(--r-pill); background: var(--chip); color: var(--muted); font-size: var(--fs-sm); font-weight: 500;
+}
+.d-chip.is-accent { background: color-mix(in srgb, var(--ana) 16%, transparent); color: var(--accent-text); }
+.d-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ana); box-shadow: 0 0 8px var(--ana); }
+
+.d-input {
+  width: 100%; height: 42px; padding: 0 16px; border: 0; border-radius: var(--r-md);
+  font: 500 var(--fs-md) var(--font); color: var(--text);
+  background: var(--chip); box-shadow: inset 0 0 0 1px var(--line);
+  transition: box-shadow var(--t-med) var(--ease), background var(--t-med) var(--ease);
+}
+.d-input::placeholder { color: var(--soft); }
+.d-input:focus { outline: none; background: var(--chip-2); box-shadow: inset 0 0 0 1.5px var(--ana); }
+
+/* aç/kapa */
+.d-toggle { position: relative; width: 42px; height: 24px; flex: none; appearance: none; -webkit-appearance: none; margin: 0;
+  border-radius: var(--r-pill); background: var(--chip-2); cursor: pointer; transition: background var(--t-med) var(--ease); }
+.d-toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--text); transition: transform var(--t-med) var(--ease), background var(--t-med) var(--ease); }
+.d-toggle:checked { background: var(--ana); }
+.d-toggle:checked::after { transform: translateX(18px); background: var(--on-ana); }
+
+/* kaydırıcı */
+.d-range { width: 100%; height: 24px; appearance: none; -webkit-appearance: none; background: transparent; cursor: pointer;
+  --p: 50%; }
+.d-range::-webkit-slider-runnable-track { height: 4px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--ana) var(--p), var(--chip-2) var(--p)); }
+.d-range::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
+  background: var(--text); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ana) 30%, transparent); }
+.d-range::-moz-range-track { height: 4px; border-radius: 4px; background: var(--chip-2); }
+.d-range::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--ana); }
+.d-range::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: var(--text); }
+
+/* ilerleme */
+.d-progress { height: 4px; border-radius: 4px; background: var(--chip-2); overflow: hidden; }
+.d-progress > i { display: block; height: 100%; width: var(--p, 40%); border-radius: inherit;
+  background: linear-gradient(90deg, var(--isima), var(--ana)); box-shadow: 0 0 12px var(--ana); }
+
+/* liste */
+.d-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.d-list > li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md);
+  color: var(--muted); cursor: pointer; transition: background var(--t-med) var(--ease), color var(--t-med) var(--ease); }
+.d-list > li:hover { background: var(--chip); color: var(--text); }
+.d-list > li.is-active { background: color-mix(in srgb, var(--ana) 13%, transparent); color: var(--text); }
+.d-list > li.is-active .d-ico { color: var(--accent-text); }
+
+/* ikon: 24'lük ızgara, 1.6 çizgi, yuvarlak uçlar, dolgusuz */
+.d-ico { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; }
+
+/* --------------------------------------------------------------------------
+   7. HAREKET
+   Öğeler aşağıdan hafifçe yükselerek, sırayla gelir. Hiçbir şey sert durmaz.
+   -------------------------------------------------------------------------- */
+@keyframes d-rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes d-pop  { from { opacity: 0; transform: scale(.94); } }
+.d-rise { animation: d-rise var(--t-slow) var(--ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+.d-pop  { animation: d-pop var(--t-slow) var(--ease) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
+@media (prefers-reduced-motion: reduce) {
+  .d-app *, .d-app *::before, .d-app *::after { animation: none !important; transition: none !important; }
+}

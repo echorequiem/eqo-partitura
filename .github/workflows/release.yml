@@ -1,0 +1,135 @@
+name: Release
+
+# Builds the single-file apps:
+#   Windows: Partitura.exe              (portable, x64)
+#   Linux:   Partitura-x86_64.AppImage  (static AppImage runtime, no libfuse2 needed)
+#
+#  - tag like v1.0.0 -> both attached to a new GitHub Release (a "-" in the tag, e.g. v1.1.0-beta.1, = pre-release)
+#  - manual run (Actions tab -> Run workflow) -> build artifacts only, or, with "release_tag", add the chosen
+#    platforms' files to that EXISTING release (its notes and other files stay as they are)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: "What to build"
+        type: choice
+        options: [both, linux, windows]
+        default: both
+      release_tag:
+        description: "Optional: existing release tag to add the files to (e.g. v1.0.0)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    if: github.event_name == 'push' || inputs.platforms != 'linux'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Partitura.exe
+        run: |
+          npx vite build
+          npx electron-builder --win --publish never
+          node scripts/collect-exe.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: Partitura.exe
+
+  linux:
+    if: github.event_name == 'push' || inputs.platforms != 'windows'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Partitura-x86_64.AppImage
+        run: |
+          npx vite build
+          npx electron-builder --linux AppImage --x64 --publish never
+          ls -la release
+          test -x release/Partitura-x86_64.AppImage
+
+      - name: Install a virtual display for the start-up check
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb xdotool imagemagick
+
+      - name: Codec check (what this Electron can encode on Linux)
+        run: xvfb-run -a npx electron scripts/linux-codec-check.cjs
+
+      - name: Start-up check (the AppImage opens its main window)
+        run: bash scripts/linux-smoke-test.sh release/Partitura-x86_64.AppImage
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-smoke-test
+          path: smoke/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: release/Partitura-x86_64.AppImage
+
+  publish:
+    needs: [windows, linux]
+    # run when every build that was asked for succeeded (a skipped platform is fine)
+    if: >-
+      always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') &&
+      (startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != '')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: SHA-256 checksums
+        run: |
+          cd out
+          ls -la
+          sha256sum Partitura* | tee SHA256SUMS.txt
+
+      - name: New release (tag push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            out/Partitura.exe
+            out/Partitura-x86_64.AppImage
+
+      - name: Add files to an existing release (manual run)
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          cd out
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null
+          for f in Partitura.exe Partitura-x86_64.AppImage; do
+            if [ -f "$f" ]; then gh release upload "$TAG" "$f" --clobber --repo "$GITHUB_REPOSITORY"; fi
+          done
