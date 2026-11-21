@@ -1,7 +1,7 @@
 // CI only (release workflow, Linux): which WebCodecs encoders this Electron offers on Linux.
 // Eqo Partitura picks MP4 (H.264 + AAC), falls back to Opus audio in MP4 and to WebM (VP9 + Opus) by itself;
 // this prints what will be used, so a release log shows it. Exits 1 only if NO video encoder works.
-// Run: xvfb-run -a npx electron scripts/linux-codec-check.cjs
+// Run: xvfb-run -a npx electron scripts/linux-codec-check.cjs --no-sandbox
 const { app, BrowserWindow } = require("electron");
 const fs = require("node:fs");
 const os = require("node:os");

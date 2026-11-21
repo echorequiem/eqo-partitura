@@ -76,7 +76,9 @@ jobs:
           sudo apt-get install -y -qq xvfb xdotool imagemagick
 
       - name: Codec check (what this Electron can encode on Linux)
-        run: xvfb-run -a npx electron scripts/linux-codec-check.cjs
+        # --no-sandbox: Ubuntu 24.04 runners block unprivileged user namespaces, and the unpacked Electron in
+        # node_modules has no root-owned chrome-sandbox. Test probe only — the AppImage's launcher decides by itself.
+        run: xvfb-run -a npx electron scripts/linux-codec-check.cjs --no-sandbox
 
       - name: Start-up check (the AppImage opens its main window)
         run: bash scripts/linux-smoke-test.sh release/Eqo-Partitura-x86_64.AppImage
