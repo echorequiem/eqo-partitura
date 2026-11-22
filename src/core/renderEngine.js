@@ -7,6 +7,7 @@ import { Muxer as WebmMuxer, StreamTarget as WebmStreamTarget } from "webm-muxer
 import { pickAudioEncoder, AudioTrackEncoder, audioEndTime, renderAudioTracks, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS } from "./audioEngine.js";
 import { PngStreamEncoder } from "./pngEncoder.js";
 import { drawCard, ensureCardFonts, cardPhaseAt, cardVideoOffset } from "./titleCards.js";
+import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont } from "./infoOverlay.js";
 
 /** The card of a list that covers list-local time t. */
 const partAt = (list, t) => {
@@ -57,9 +58,9 @@ export function avcLevelHex(width, height, fps) {
   return "3e";
 }
 
-/** Bitrate from size and fps, capped so a file stays below ~8 GB. */
-export function chooseBitrate(width, height, fps, durationSec) {
-  let bps = clamp(width * height * fps * 0.09, 4e6, 40e6);
+/** Bitrate from size and fps (or the user's choice in Mbit/s), capped so a file stays below ~8 GB. */
+export function chooseBitrate(width, height, fps, durationSec, chosenMbps = 0) {
+  let bps = chosenMbps > 0 ? clamp(chosenMbps * 1e6, 1e6, 100e6) : clamp(width * height * fps * 0.09, 4e6, 40e6);
   const maxBytes = 8e9;
   if (durationSec > 0 && (bps * durationSec) / 8 > maxBytes) {
     bps = Math.max(2e6, (maxBytes * 8) / durationSec);
@@ -207,7 +208,8 @@ export class ScoreRaster {
         if (!(groups[layer] || []).length) continue;
         // keep only this layer's marked elements visible
         const cls = `.echo-mark-${layer}`;
-        const css = `svg *{visibility:hidden !important}${cls},${cls} *{visibility:visible !important}`;
+        // clipPath shapes stay visible (a hidden one clips everything away — e.g. the beam parts)
+        const css = `svg *{visibility:hidden !important}${cls},${cls} *,clipPath,clipPath *{visibility:visible !important}`;
         const layerText = text.replace(/<svg\b[^>]*>/, (m) => m + "<style>" + css + "</style>");
         this.images[layer] = await this._toImage(layerText);
         this.hasNotes = true;
@@ -677,6 +679,11 @@ export class RenderEngine {
       ctx.fillStyle = f.accent;
       ctx.fillRect(Math.round(W / 2), 0, f.playheadW, H);
     }
+    // live tempo / notes played in a corner (optional, page 3)
+    if (f.info) {
+      const pb = this.playbackEngine;
+      drawInfoOverlay(ctx, W, H, f.info, infoValues(pb, t), f.infoLabels);
+    }
   }
 
   /** Draws the lit items in the glow colour with a soft glow (video counterpart of .note-active). */
@@ -1017,6 +1024,7 @@ export class RenderEngine {
       });
       if (this._cancel) throw new RenderError("CANCELLED");
 
+      if (infoActive(this.appState.info)) await ensureInfoFont(); // canvas text needs the face loaded
       bg = await this._prepareBackground();
       if (this._cancel) throw new RenderError("CANCELLED");
       for (const part of [...intro, ...outro]) {
@@ -1044,6 +1052,8 @@ export class RenderEngine {
         bgColor: isDark || bg.media ? "#000000" : "#eaf3ec",
         accent: bodyStyle.getPropertyValue("--accent-yellow").trim() || "#cca700",
         showPlayhead: this.appState.showPlayhead !== false,
+        info: infoActive(this.appState.info) ? normalizeInfo(this.appState.info) : null,
+        infoLabels: this.appState.infoLabels || {},
         playheadW: Math.max(1, Math.round(2 * k)),
         sections: { intro, outro, introDuration: introDur, leadIn: leadDur, mainDuration, leadOut: leadDur },
         fx: fx && (fx.fog > 0 || fx.embers > 0) ? fx : null,
@@ -1058,7 +1068,7 @@ export class RenderEngine {
     }
   }
 
-  async startRender({ width, height, fps, format = "mp4", baseName = "Eqo Partitura", openSink, audio = null, cards = null, fx = null, leadIn = true }, onProgress) {
+  async startRender({ width, height, fps, format = "mp4", baseName = "Eqo Partitura", openSink, audio = null, cards = null, fx = null, leadIn = true, bitrateMbps = 0 }, onProgress) {
     const emit = (info) => { if (onProgress) onProgress(info); };
 
     if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") {
@@ -1079,7 +1089,7 @@ export class RenderEngine {
       const totalFrames = Math.ceil(built.totalDuration * fps);
       const videoDuration = totalFrames / fps;
 
-      const bitrate = chooseBitrate(W, H, fps, videoDuration);
+      const bitrate = chooseBitrate(W, H, fps, videoDuration, Number(bitrateMbps) || 0);
       // Videos (background, intro, outro) are decoded by seeking in time order: parallel lanes would make them
       // jump back and forth, so they use a single encoder.
       const candidates = await listEncoderCandidates(format, { width: W, height: H, fps, bitrate }, { allowLanes: !anyVideo });

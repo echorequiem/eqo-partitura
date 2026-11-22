@@ -15,7 +15,7 @@
   <a href="README.md">English</a>
 </p>
 
-![Önizleme](docs/screenshots/03-preview.png)
+![Önizleme](docs/screenshots/04-preview.png)
 
 ## Özellikler
 
@@ -25,9 +25,19 @@
 - **İstediğiniz yerden başlatın.** Sarma çubuğunu kullanın, bir notaya tıklayın, şeridi sürükleyin ya da ←/→ tuşlarına basın.
 - **Dur işaretleri (fermata) hesaba katılır.** Fermatalı notalar varsayılan olarak ×2.0 tutulur (MuseScore ile aynı); bu oranı ×1–×6 arasında değiştirebilirsiniz.
 - **Notadaki tempo otomatik.** Dosyada yazan tempo (♩ = 90 vb.) otomatik uygulanır; tempo değişimleri *elmas* işaretçilere dönüşür. Elmasları şeridin istediğiniz yerine ekleyebilir, düzenleyebilir ve silebilirsiniz.
-- **Arka plan stüdyosu.** Arka plana görsel ya da döngülü video koyabilirsiniz; ölçek, opaklık, konum ve siyah-beyaz ayarlarıyla.
+- **Arka plan stüdyosu.** Arka plana görsel ya da döngülü video koyabilirsiniz; ölçek, opaklık, konum ve siyah-beyaz ayarlarıyla — ya da hazır desenlerden birini seçebilirsiniz (altıgen, üçgen, ızgara, noktalar, dalgalar, çizgiler, ışık, porte).
+- **Videoda canlı bilgi (isteğe bağlı).** O ana kadar çalınan nota sayısı, saniyedeki nota sayısıyla hız ve o an duyulan tempo (rit. ve accel. dahil); seçtiğiniz köşede, italik serif yazıyla.
+- **Önce bitmiş videoyu gör.** Önizleme sayfası, render almadan önce videonun tamamını oynatır: açılış ve kapanış ekranları, arka plan, efektler ve ses; render'ın kendi çizim koduyla.
 - **İsteğe bağlı müzik parçası.** MP3 / WAV / OGG / M4A / FLAC ekleyin ve başlangıç kaydırmasıyla (milisaniye hassasiyetinde) notalarla hizalayın. Ses seviyesini ayarlayabilir, isterseniz videoyu müzik bitene kadar uzatabilirsiniz. Ses videoya gömülür, önizlemede de senkron çalar.
-- **Her formata uygun.** En/boy oranları 16:9, 9:16, 1:1, 4:3, 4:5; çözünürlükler 720p, 1080p, 2K, 4K; 24/25/30/60/120 FPS.
+- **Her formata uygun.** En/boy oranları 16:9, 9:16, 1:1, 4:3, 4:5; çözünürlükler 720p, 1080p, 2K, 4K; 24/25/30/60/120 FPS; video bit hızı boyuta ve FPS'e göre otomatik ayarlanır.
+
+| 1 · Temel | 2 · Arka plan | 3 · Ayarlar |
+| --- | --- | --- |
+| ![Temel](docs/screenshots/01-basics.png) | ![Arka plan](docs/screenshots/02-background.png) | ![Ayarlar](docs/screenshots/03-settings.png) |
+
+| 4 · Önizleme | 5 · Çıktı |
+| --- | --- |
+| ![Önizleme](docs/screenshots/04-preview.png) | ![Çıktı](docs/screenshots/05-export.png) |
 - **Doğrudan diske yazar.** Uzun 4K render'lar belleği doldurmaz: video seçtiğiniz dosyaya parça parça yazılır.
 - **HD nota şeridi** dışa aktarımı: PNG, JPEG, WebP veya SVG.
 - **Projeler.** Nota, arka plan, müzik ve tüm ayarları kaydedip yeniden açabilirsiniz.
@@ -56,12 +66,15 @@ AppImage statik AppImage çalışma zamanını kullanır, `libfuse2` gerektirmez
 
 ## Kullanım
 
-1. **Ayarlar:** MusicXML dosyasını, FPS'i, en/boy oranını, çözünürlüğü ve vurgu rengini seçin.
-2. **Arka plan:** İsterseniz görsel/video arka planı ve müzik parçasını ekleyin.
-3. **Önizleme:** Oynatın (<kbd>Boşluk</kbd>); BPM'i, tempo elmaslarını, nota boyutunu ve müzik kaydırmasını ayarlayın.
-4. **Çıktı:** MP4 veya WebM'i seçin, kayıt yerini belirleyin ve **Render işlemini başlat**'a tıklayın.
+1. **Temel:** MusicXML dosyasını ve isterseniz müzik parçasını seçin; FPS, en/boy oranı, çözünürlük ve parlama rengi.
+2. **Arka plan:** İsterseniz görsel/video arka plan ya da hazır desen, sis ve kıvılcım, müziğin ses seviyesi ve kaydırması, açılış/kapanış ekranları.
+3. **Ayarlar:** Notayı oynatın (<kbd>Boşluk</kbd>); BPM'i, tempo elmaslarını, fermataları, nota boyutunu, nota temasını ve isteğe bağlı video bilgilerini ayarlayın.
+4. **Önizleme:** Videonun render'da çıkacak son halini izleyin.
+5. **Çıktı:** MP4 veya WebM'i seçin, sağ alttaki **Render işlemini başlat**'a tıklayıp kayıt yerini belirleyin; istediğiniz an duraklatıp iptal edebilirsiniz.
 
-Kısayollar: <kbd>Boşluk</kbd> oynat/duraklat · <kbd>←</kbd>/<kbd>→</kbd> önceki/sonraki nota · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 sn · <kbd>Home</kbd>/<kbd>End</kbd> başa/sona · <kbd>Ctrl</kbd>+<kbd>S</kbd> projeyi kaydet · <kbd>Esc</kbd> pencereyi kapat.
+Yan panelden yolu açık olan her adıma atlanabilir. Arayüz İngilizce açılır, seçtiğiniz dili hatırlar.
+
+Kısayollar: <kbd>Boşluk</kbd> oynat/duraklat · <kbd>←</kbd>/<kbd>→</kbd> önceki/sonraki nota · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 sn · <kbd>Home</kbd>/<kbd>End</kbd> başa/sona · <kbd>Ctrl</kbd>+<kbd>S</kbd> projeyi kaydet · <kbd>F11</kbd> tam ekran · <kbd>Esc</kbd> pencereyi kapat. Kaydedilmemiş değişiklikle kapatırken uygulama önce sorar (Kaydet / Kaydetme / İptal).
 
 Projeler Windows'ta `%USERPROFILE%\.eqo-partitura\projects`, Linux'ta `~/.eqo-partitura/projects` klasöründe saklanır.
 

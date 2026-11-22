@@ -7,13 +7,8 @@ dist-ssr/
 release/
 *.blockmap
 Eqo-Partitura.exe
-Partitura.exe
 *.AppImage
 smoke/
-
-# Local tooling and notes
-.claude/
-release-notes-*.md
 
 # Logs
 logs/

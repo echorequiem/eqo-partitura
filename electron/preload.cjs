@@ -11,7 +11,14 @@ contextBridge.exposeInMainWorld("echo", {
   app: {
     info: () => invoke("app:info"),
     /** The UI has drawn its first complete frame: the main process may show the window. */
-    ready: () => invoke("app:ready")
+    ready: () => invoke("app:ready"),
+    /** cb() runs when the user closes the window; the page then calls closeNow() (or keeps the app open). */
+    onCloseRequest: (cb) => {
+      if (typeof cb !== "function") return;
+      ipcRenderer.removeAllListeners("app:close-request");
+      ipcRenderer.on("app:close-request", () => cb());
+    },
+    closeNow: () => invoke("app:close-now")
   },
   projects: {
     list: () => invoke("projects:list"),

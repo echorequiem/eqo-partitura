@@ -83,6 +83,17 @@ function hasFermata(voiceEntry) {
   return arts.some((a) => a && (a.articulationEnum === 10 || a.articulationEnum === 11));
 }
 
+/** A rest (OSMD 2.3.1: Note.isRest()). Tied continuations are not new note heads either. */
+function isRestNote(note) {
+  try {
+    if (typeof note.isRest === "function" ? note.isRest() : !note.Pitch) return true;
+    const tie = note.NoteTie;
+    return !!(tie && tie.StartNote && tie.StartNote !== note);
+  } catch (_) {
+    return false;
+  }
+}
+
 /** Trill mark on the note (OrnamentEnum.Trill = 0 in OSMD 2.3.1). */
 function hasTrill(note) {
   try {
@@ -192,6 +203,49 @@ function attachExpressions(svg, svgRect, steps) {
   });
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+let beamClipSeq = 0;
+
+/** Hidden copy of a beam, clipped to x0 … x1 (svg-relative CSS px), placed right after it. */
+function beamCopy(el, r, x0, x1) {
+  const svg = el.ownerSVGElement;
+  if (!svg || !el.parentNode) return null;
+  let bb;
+  try { bb = el.getBBox(); } catch (_) { return null; }
+  if (!(bb.width > 0) || !(r.w > 0)) return null;
+  const kx = bb.width / r.w; // CSS px -> the beam's own user units
+  const ky = bb.height > 0 && r.h > 0 ? bb.height / r.h : kx;
+  let defs = svg.querySelector("defs.echo-beam-clips");
+  if (!defs) {
+    defs = document.createElementNS(SVG_NS, "defs");
+    defs.setAttribute("class", "echo-beam-clips");
+    svg.prepend(defs);
+  }
+  const clip = document.createElementNS(SVG_NS, "clipPath");
+  clip.id = "echo-beam-clip-" + ++beamClipSeq;
+  clip.setAttribute("clipPathUnits", "userSpaceOnUse");
+  const rect = document.createElementNS(SVG_NS, "rect");
+  rect.setAttribute("x", String(bb.x + (x0 - r.x) * kx));
+  rect.setAttribute("width", String((x1 - x0) * kx));
+  rect.setAttribute("y", String(bb.y - 30 * ky)); // room above and below for the glow
+  rect.setAttribute("height", String(bb.height + 60 * ky));
+  clip.append(rect);
+  defs.append(clip);
+  const copy = el.cloneNode(true);
+  copy.removeAttribute("id");
+  copy.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+  copy.classList.add("echo-beam-part");
+  copy.setAttribute("visibility", "hidden"); // shown by .note-active (style.css); stays hidden in the video's base
+  copy.setAttribute("clip-path", `url(#${clip.id})`);
+  el.after(copy);
+  return copy;
+}
+
+/** Removes the beam copies of an earlier build (the timeline is rebuilt on the same drawing). */
+function clearBeamCopies(svg) {
+  svg.querySelectorAll(".echo-beam-part, defs.echo-beam-clips").forEach((n) => n.remove());
+}
+
 /** Step-based fallback: a beam (given only to the group's FIRST note) is added to every step under it. */
 function extendBeams(steps) {
   const beams = [];
@@ -248,17 +302,28 @@ class ItemCollector {
     let len = note.Length && typeof note.Length.RealValue === "number" ? note.Length.RealValue * 4 : 0;
     if (!(len > 0)) len = MIN_GLOW_BEATS;
     const slot = this.slotOf(note);
-    this.noteInfo.set(note, { beat, len, slot });
+    const info = { beat, len, slot, x: null };
+    this.noteInfo.set(note, info);
 
     for (const gNote of findGraphicalNotes(this.osmd, note, this.ctx)) {
       const group = gNote && typeof gNote.getSVGGElement === "function" ? gNote.getSVGGElement() : null;
       if (!group) continue;
+      // x of the note's stem (where it meets its beam); the note head's centre without a stem
+      if (info.x === null) {
+        let r = null;
+        try { const st = gNote.getStemSVG && gNote.getStemSVG(); if (st) r = rectOf(st, this.svgRect); } catch (_) { r = null; }
+        if (!r) r = rectOf(group, this.svgRect);
+        if (r) info.x = r.x + r.w / 2;
+      }
       // chord notes share one group: one item, lasting as long as the longest of them
       const existing = this.groupItem.get(group);
+      const heads = isRestNote(note) ? 0 : 1;
       if (existing && Math.abs(existing.startBeat - beat) < 1e-9) {
         existing.endBeat = Math.max(existing.endBeat, beat + len);
+        if (!(existing.noteCount >= 0)) existing.noteCount = 0;
+        existing.noteCount += heads;
       } else {
-        const item = { startBeat: beat, endBeat: beat + len, elements: [], rects: [], slot };
+        const item = { startBeat: beat, endBeat: beat + len, elements: [], rects: [], slot, noteCount: heads };
         if (hasTrill(note)) item.fx = "trill";
         this._addEl(item, group, "notes");
         for (const part of outsideParts(gNote)) {
@@ -307,6 +372,29 @@ class ItemCollector {
     if (item.elements.length) this.items.push(item);
   }
 
+  /**
+   * One note's part of a beam, between x = lo … hi (svg-relative CSS px; ±Infinity = the beam's end).
+   * Preview: a hidden copy of the beam clipped to that part, shown while the note is lit.
+   * Video: the beam layer, cut to the same part by the item's box.
+   */
+  _beamPart(els, lo, hi, startBeat, endBeat, slot) {
+    if (!(endBeat > startBeat)) return;
+    const item = { startBeat, endBeat, elements: [], rects: [], slot };
+    for (const el of els) {
+      const r = rectOf(el, this.svgRect);
+      if (!r) continue;
+      const x0 = Math.max(lo, r.x - PAD);
+      const x1 = Math.min(hi, r.x + r.w + PAD);
+      if (!(x1 > x0)) continue;
+      // the outer ends get room for the glow; the cut between two notes is exact
+      const copy = beamCopy(el, r, lo === -Infinity ? r.x - 14 : lo, hi === Infinity ? r.x + r.w + 14 : hi);
+      if (!copy) continue;
+      item.elements.push(copy);
+      item.rects.push({ x: x0, y: r.y - PAD, w: x1 - x0, h: r.h + PAD * 2, layer: "beam" });
+    }
+    if (item.elements.length) this.items.push(item);
+  }
+
   /** Beams, slurs and ties: from their first note's start to their last note's end. */
   resolveSpans() {
     const range = (notes) => {
@@ -319,9 +407,28 @@ class ItemCollector {
       }
       return [s, e];
     };
+    // a beam is shared out: every note lights its own part of it — from halfway to the note before to
+    // halfway to the note after — for its own duration (two notes share the beam between them equally)
     for (const { beam, els, slot } of this.pendingBeams) {
-      const [s, e] = range(beam.Notes || []);
-      this._spanItem(els, s, e, slot, "beam");
+      const pts = [];
+      for (const n of beam.Notes || []) {
+        const info = this.noteInfo.get(n);
+        if (!info || info.x === null) continue;
+        const p = pts.find((q) => Math.abs(q.x - info.x) < 1.5); // chord notes share one stem
+        if (p) { p.s = Math.min(p.s, info.beat); p.e = Math.max(p.e, info.beat + info.len); }
+        else pts.push({ x: info.x, s: info.beat, e: info.beat + info.len });
+      }
+      pts.sort((a, b) => a.x - b.x);
+      if (pts.length < 2) {
+        const [s, e] = range(beam.Notes || []);
+        this._spanItem(els, s, e, slot, "beam");
+        continue;
+      }
+      for (let i = 0; i < pts.length; i++) {
+        const lo = i === 0 ? -Infinity : (pts[i - 1].x + pts[i].x) / 2;
+        const hi = i === pts.length - 1 ? Infinity : (pts[i].x + pts[i + 1].x) / 2;
+        this._beamPart(els, lo, hi, pts[i].s, pts[i].e, slot);
+      }
     }
     for (const { slur, els, slot } of this.pendingSlurs) {
       const [s, e] = range([slur.StartNote, slur.EndNote].filter(Boolean));
@@ -385,6 +492,7 @@ export function buildTimeline(osmd, containerEl) {
   if (!svg) return steps;
   const svgRect = svg.getBoundingClientRect();
   if (!svgRect.width) return steps; // CRITICAL: hidden page = no measurements
+  clearBeamCopies(svg);
 
   const cursor = osmd.cursor;
   resetCursor(cursor);

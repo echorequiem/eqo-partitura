@@ -5,7 +5,7 @@ let openCount = 0;
 export const isDialogOpen = () => openCount > 0;
 
 /**
- * @param {{title?: string, message: string, kind?: "info"|"error", buttons: {label: string, value: any, kind?: "primary"|"danger"|"secondary"}[], cancelValue?: any}} opts
+ * @param {{title?: string, message: string, kind?: "info"|"error", buttons: {label: string, value: any, kind?: "primary"|"positive"|"danger"|"secondary"}[], cancelValue?: any}} opts
  * @returns {Promise<any>} the value of the pressed button (cancelValue on Esc / outside click)
  */
 export function showDialog({ title, message, kind = "info", buttons, cancelValue = null }) {
@@ -40,10 +40,11 @@ export function showDialog({ title, message, kind = "info", buttons, cancelValue
       btn.textContent = b.label;
       btn.className =
         b.kind === "primary" ? "d-btn is-primary dialog-btn" :
-        b.kind === "danger" ? "d-btn is-danger dialog-btn" : "d-btn is-ghost dialog-btn";
+        b.kind === "danger" ? "d-btn is-danger dialog-btn" :
+        b.kind === "positive" ? "d-btn is-positive is-solid dialog-btn" : "d-btn is-ghost dialog-btn";
       btn.addEventListener("click", () => close(b.value));
       footer.appendChild(btn);
-      if (b.kind === "primary" || b.kind === "danger") primaryBtn = btn;
+      if (b.kind === "primary" || b.kind === "positive" || (b.kind === "danger" && !primaryBtn)) primaryBtn = btn;
     }
     card.appendChild(footer);
     overlay.appendChild(card);

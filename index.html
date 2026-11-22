@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="tr" data-family="studio" data-theme="dark">
+<html lang="en" data-family="studio" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" href="./src/assets/brand/partitura-64.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Eqo Partitura</title>
     <!-- critical first paint: the Echo Studio dark ground before the stylesheet arrives -->
-    <style>html,body{margin:0;background:#0b090f;color:#eef2f3}.d-brand img{width:28px;height:28px}</style>
+    <style>html,body{margin:0;background:#0b090f;color:#eef2f3}</style>
   </head>
   <body class="d-app dark-theme">
     <!-- shared icon set: 24 grid, 1.6 line, round caps, no fill (Diapason rule) -->
@@ -24,6 +24,7 @@
       <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
       <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
       <symbol id="i-render" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/></symbol>
+      <symbol id="i-wave" viewBox="0 0 24 24"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2M21 12h0"/></symbol>
       <symbol id="i-new" viewBox="0 0 24 24"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M12 11v6M9 14h6"/></symbol>
     </svg>
 
@@ -31,40 +32,26 @@
 
       <!-- ===== sidebar: app, the four steps, appearance ===== -->
       <aside class="side">
-        <div class="d-brand">
-          <img src="./src/assets/brand/partitura.svg" width="28" height="28" alt="" id="app-brand-icon" />
-          <span><span id="txt-app-title">Eqo Partitura</span><br /><small class="family"><img src="./src/assets/brand/echo-studio.svg" width="12" height="12" alt="" />Echo Studio</small></span>
-          <span id="app-version" class="app-version"></span>
-        </div>
+        <!-- 1.0.1: no brand block — the window title and icon carry the name; #app-version stays for code -->
+        <span id="app-version" class="app-version" hidden></span>
 
-        <ol class="d-list steps" aria-label="Adımlar">
-          <li class="step-indicator active" id="step-ind-1" data-step="1" tabindex="0">
-            <svg class="d-ico"><use href="#i-score" /></svg>
-            <span class="step-text"><b data-i18n="step1Title"></b><small data-i18n="step1Sub"></small></span>
-          </li>
-          <li class="step-indicator" id="step-ind-2" data-step="2" tabindex="0">
-            <svg class="d-ico"><use href="#i-image" /></svg>
-            <span class="step-text"><b data-i18n="step2Title"></b><small data-i18n="step2Sub"></small></span>
-          </li>
-          <li class="step-indicator" id="step-ind-3" data-step="3" tabindex="0">
-            <svg class="d-ico"><use href="#i-eye" /></svg>
-            <span class="step-text"><b data-i18n="step3Title"></b><small data-i18n="step3Sub"></small></span>
-          </li>
-          <li class="step-indicator" id="step-ind-4" data-step="4" tabindex="0">
-            <svg class="d-ico"><use href="#i-film" /></svg>
-            <span class="step-text"><b data-i18n="step4Title"></b><small data-i18n="step4Sub"></small></span>
-          </li>
+        <!-- the five steps: a numeral and a short name (1.0.1: slim sidebar) -->
+        <ol class="d-list steps" aria-label="Steps">
+          <li class="step-indicator active" id="step-ind-1" data-step="1" tabindex="0"><span class="step-text"><b data-i18n="step1Title"></b></span></li>
+          <li class="step-indicator" id="step-ind-2" data-step="2" tabindex="0"><span class="step-text"><b data-i18n="step2Title"></b></span></li>
+          <li class="step-indicator" id="step-ind-3" data-step="3" tabindex="0"><span class="step-text"><b data-i18n="step3Title"></b></span></li>
+          <li class="step-indicator" id="step-ind-4" data-step="4" tabindex="0"><span class="step-text"><b data-i18n="step4Title"></b></span></li>
+          <li class="step-indicator" id="step-ind-5" data-step="5" tabindex="0"><span class="step-text"><b data-i18n="step5Title"></b></span></li>
         </ol>
 
         <div class="side-foot">
-          <span class="d-label" data-i18n="appearance"></span>
           <div id="theme-switch" class="seg theme-switch" role="radiogroup" data-i18n-title="themeToggle">
             <button type="button" role="radio" data-apptheme="dark" data-i18n-title="themeDark"><svg class="d-ico"><use href="#i-moon" /></svg></button>
             <button type="button" role="radio" data-apptheme="light" data-i18n-title="themeLight"><svg class="d-ico"><use href="#i-sun" /></svg></button>
           </div>
           <select id="language-select" class="lang-select" aria-label="Language">
-            <option value="tr" selected>Türkçe</option>
-            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+            <option value="en" selected>English</option>
             <option value="de">Deutsch</option>
             <option value="fr">Français</option>
             <option value="es">Español</option>
@@ -74,11 +61,7 @@
             <option value="ja">日本語</option>
             <option value="zh">中文</option>
           </select>
-          <label class="row"><span data-i18n="uiSounds"></span><input type="checkbox" class="d-toggle" id="ui-sound-toggle" checked /></label>
-          <div class="maker">
-            <img src="./src/assets/brand/echo-masterworks-seal.svg" width="22" height="22" alt="" />
-            <span>Echo Masterworks</span>
-          </div>
+          <label class="sound-row" data-i18n-title="uiSounds"><svg class="d-ico" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></svg><input type="checkbox" class="d-toggle" id="ui-sound-toggle" checked /></label>
         </div>
       </aside>
 
@@ -87,16 +70,16 @@
         <!-- ===== Page 1: score, projects, video format, glow colour ===== -->
         <section id="page-1" class="page active">
           <header class="d-bar d-glass page-bar">
-            <div class="bar-title"><span class="d-label" data-i18n="step1Sub"></span><h1 class="d-title" data-i18n="step1Title"></h1></div>
+            <div class="bar-title"><h1 class="d-title" data-i18n="step1Title"></h1></div>
             <div class="bar-actions">
               <button id="next-to-page2" class="d-btn is-primary" disabled><span data-i18n="proceed"></span><svg class="d-ico"><use href="#i-next" /></svg></button>
             </div>
           </header>
 
+          <!-- layout: [score file | saved projects | music file] over [video format | colour screen] -->
           <div class="page-body setup-grid">
-            <div class="col">
-              <article class="d-card d-rise" style="--i:1">
-                <span class="d-label" data-i18n="musicFile"></span>
+              <article class="d-card area-score d-rise" style="--i:1">
+                <span class="d-label sec" data-i18n="musicFile"></span>
                 <div class="drop-zone-wrapper music-drop" id="music-drop-zone-wrap">
                   <!-- CRITICAL: transparent native input covering the whole box (keep this design) -->
                   <input type="file" id="file-input" accept=".musicxml,.xml,.mxl,text/xml,application/xml" />
@@ -112,18 +95,35 @@
                 </div>
               </article>
 
-              <article class="d-card d-rise grow" style="--i:2">
-                <span class="d-label" data-i18n="savedProjects"></span>
+              <article class="d-card area-projects d-rise" style="--i:2">
+                <span class="d-label sec" data-i18n="savedProjects"></span>
                 <div id="projects-list-container" class="projects-list"></div>
               </article>
-            </div>
 
-            <div class="col">
-              <article class="d-card d-rise" style="--i:3">
-                <span class="d-label" data-i18n="secVideoFormat"></span>
-                <div class="opt-rows">
-                  <div class="opt-row">
-                    <span data-i18n="fps"></span>
+              <article class="d-card area-audio d-rise" style="--i:3">
+                <span class="d-label sec" data-i18n="audioTitle"></span>
+                <div class="drop-zone-wrapper" id="audio-drop-zone-wrap">
+                  <input type="file" id="audio-input" accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus" hidden />
+                  <label class="drop-zone" for="audio-input" id="audio-drop-label">
+                    <svg class="d-ico big"><use href="#i-wave" /></svg>
+                    <span class="drop-zone-label" data-i18n="audioSelectLabel"></span>
+                    <span class="d-chip is-accent browse-btn" data-i18n="selectFile"></span>
+                  </label>
+                  <div id="audio-loaded-state" class="file-loaded-state" style="display: none;">
+                    <span id="audio-loaded-text" class="loaded-status-text"></span>
+                    <div class="btn-pair">
+                      <label for="audio-input" class="d-btn is-sm" data-i18n="change"></label>
+                      <button id="audio-clear-btn" class="d-btn is-sm is-danger" data-i18n="clear"></button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+
+              <article class="d-card area-format d-rise" style="--i:4">
+                <span class="d-label sec" data-i18n="secVideoFormat"></span>
+                <div class="field-stack">
+                  <div class="field">
+                    <span class="field-name" data-i18n="fps"></span>
                     <div class="seg" id="fps-group">
                       <button class="pill" data-fps="24">24</button>
                       <button class="pill" data-fps="25">25</button>
@@ -132,8 +132,8 @@
                       <button class="pill" data-fps="120">120</button>
                     </div>
                   </div>
-                  <div class="opt-row">
-                    <span data-i18n="aspect"></span>
+                  <div class="field">
+                    <span class="field-name" data-i18n="aspect"></span>
                     <div class="seg" id="aspect-group">
                       <button class="pill active" data-aspect="16-9">16:9</button>
                       <button class="pill" data-aspect="9-16">9:16</button>
@@ -142,8 +142,8 @@
                       <button class="pill" data-aspect="4-5">4:5</button>
                     </div>
                   </div>
-                  <div class="opt-row">
-                    <span data-i18n="resolution"></span>
+                  <div class="field">
+                    <span class="field-name" data-i18n="resolution"></span>
                     <div class="seg" id="res-group">
                       <button class="pill" data-res="720p">720p</button>
                       <button class="pill active" data-res="1080p">1080p</button>
@@ -154,9 +154,14 @@
                 </div>
               </article>
 
-              <article class="d-card d-rise" style="--i:4">
-                <span class="d-label" data-i18n="colorPalette"></span>
+              <article class="d-card area-color d-rise" style="--i:5">
+                <span class="d-label sec" data-i18n="colorPalette"></span>
                 <div class="palette-layout">
+                  <!-- the big colour screen: saturation / value area + hue bar -->
+                  <div class="inline-picker">
+                    <div class="sv-box" id="sv-box"><div class="sv-cursor" id="sv-cursor"></div></div>
+                    <div class="hue-bar" id="hue-bar"><div class="hue-cursor" id="hue-cursor"></div></div>
+                  </div>
                   <div class="palette-swatches">
                     <!-- which staff's colour is being edited (two-staff scores) -->
                     <div class="color-targets">
@@ -179,29 +184,24 @@
                     </div>
                     <span class="sub-label" data-i18n="savedColors"></span>
                     <div class="color-picker-group saved-colors" id="saved-colors"></div>
-                  </div>
-
-                  <!-- always-open colour picker -->
-                  <div class="inline-picker">
-                    <div class="sv-box" id="sv-box"><div class="sv-cursor" id="sv-cursor"></div></div>
-                    <div class="hue-bar" id="hue-bar"><div class="hue-cursor" id="hue-cursor"></div></div>
                     <div class="picker-side">
                       <span class="sub-label" data-i18n="freeColor"></span>
-                      <div class="color-preview" id="color-preview"></div>
-                      <input type="text" id="color-hex-input" class="d-input hex-input" value="#FF0000" maxlength="7" spellcheck="false" />
-                      <button id="save-color-btn" class="d-btn is-sm" data-i18n="saveColor"></button>
+                      <div class="hex-row">
+                        <div class="color-preview" id="color-preview"></div>
+                        <input type="text" id="color-hex-input" class="d-input hex-input" value="#FF0000" maxlength="7" spellcheck="false" />
+                        <button id="save-color-btn" class="d-btn is-sm is-positive" data-i18n="saveColor"></button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </article>
-            </div>
           </div>
         </section>
 
         <!-- ===== Page 2: background, music, intro / outro screens ===== -->
         <section id="page-2" class="page">
           <header class="d-bar d-glass page-bar">
-            <div class="bar-title"><span class="d-label" data-i18n="step2Sub"></span><h1 class="d-title" data-i18n="bgStudioTitle"></h1></div>
+            <div class="bar-title"><h1 class="d-title" data-i18n="step2Title"></h1></div>
             <div class="bar-actions">
               <button id="back-to-page1" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-back" /></svg><span data-i18n="backToSettings"></span></button>
               <button id="next-to-page3" class="d-btn is-primary"><span data-i18n="nextToPreview"></span><svg class="d-ico"><use href="#i-next" /></svg></button>
@@ -235,7 +235,7 @@
                 <span class="d-label" data-i18n="bgMediaTitle"></span>
                 <div class="drop-zone-wrapper" id="bg-drop-zone-wrap">
                   <input type="file" id="bg-media-input" accept="image/*,video/mp4,video/webm,video/quicktime" hidden />
-                  <label class="drop-zone small" for="bg-media-input" id="bg-drop-label">
+                  <label class="drop-zone small bg-drop-row" for="bg-media-input" id="bg-drop-label">
                     <span id="bg-name-label" data-i18n="bgSelectLabel"></span>
                     <span class="d-chip is-accent browse-btn" data-i18n="selectFile"></span>
                   </label>
@@ -247,46 +247,44 @@
                     </div>
                   </div>
                 </div>
-                <button id="bg-loop-btn" type="button" class="toggle-row"><span data-i18n="tgLoop"></span><i class="switch"></i></button>
-                <button id="bg-grayscale-btn" type="button" class="toggle-row"><span data-i18n="tgGrayscale"></span><i class="switch"></i></button>
+                <!-- ready-made backgrounds (core/bgPresets.js): one click puts the pattern in as a picture -->
+                <span class="sub-label" data-i18n="bgPresets"></span>
+                <div id="bg-preset-grid" class="bg-preset-grid"></div>
+                <!-- 1.0.1: pairs side by side so the whole panel fits without scrolling -->
+                <div class="pair-grid">
+                  <button id="bg-loop-btn" type="button" class="toggle-row compact"><span data-i18n="tgLoop"></span><i class="switch"></i></button>
+                  <button id="bg-grayscale-btn" type="button" class="toggle-row compact"><span data-i18n="tgGrayscale"></span><i class="switch"></i></button>
+                </div>
 
                 <span class="d-label" data-i18n="secLayout"></span>
-                <label class="slider-row"><span><span data-i18n="scale"></span><b class="d-mono d-accent"><span id="bg-scale-val">100</span>%</b></span>
-                  <input type="range" class="d-range" id="bg-scale-range" min="20" max="250" value="100" /></label>
-                <label class="slider-row"><span><span data-i18n="opacity"></span><b class="d-mono d-accent"><span id="bg-opacity-val">50</span>%</b></span>
-                  <input type="range" class="d-range" id="bg-opacity-range" min="0" max="100" value="50" /></label>
-                <label class="slider-row"><span><span data-i18n="posX"></span><b class="d-mono d-accent"><span id="bg-pos-x-val">0</span>%</b></span>
-                  <input type="range" class="d-range" id="bg-pos-x-range" min="-100" max="100" value="0" /></label>
-                <label class="slider-row"><span><span data-i18n="posY"></span><b class="d-mono d-accent"><span id="bg-pos-y-val">0</span>%</b></span>
-                  <input type="range" class="d-range" id="bg-pos-y-range" min="-100" max="100" value="0" /></label>
+                <div class="pair-grid">
+                  <label class="slider-row"><span><span data-i18n="scale"></span><b class="d-mono d-accent"><span id="bg-scale-val">100</span>%</b></span>
+                    <input type="range" class="d-range" id="bg-scale-range" min="20" max="250" value="100" /></label>
+                  <label class="slider-row"><span><span data-i18n="opacity"></span><b class="d-mono d-accent"><span id="bg-opacity-val">50</span>%</b></span>
+                    <input type="range" class="d-range" id="bg-opacity-range" min="0" max="100" value="50" /></label>
+                  <label class="slider-row"><span><span data-i18n="posX"></span><b class="d-mono d-accent"><span id="bg-pos-x-val">0</span>%</b></span>
+                    <input type="range" class="d-range" id="bg-pos-x-range" min="-100" max="100" value="0" /></label>
+                  <label class="slider-row"><span><span data-i18n="posY"></span><b class="d-mono d-accent"><span id="bg-pos-y-val">0</span>%</b></span>
+                    <input type="range" class="d-range" id="bg-pos-y-range" min="-100" max="100" value="0" /></label>
+                </div>
 
-                <!-- atmosphere: haze and embers, each with its own switch and intensity -->
+                <!-- atmosphere: haze and embers, each with its own switch and intensity (one column each) -->
                 <span class="d-label" data-i18n="secAtmosphere"></span>
-                <button id="fog-toggle-btn" type="button" class="toggle-row"><span data-i18n="tgFog"></span><i class="switch"></i></button>
-                <label class="slider-row fx-row" id="fog-row"><span><span data-i18n="fogIntensity"></span><b class="d-mono d-accent"><span id="fog-val">35</span>%</b></span>
-                  <input type="range" class="d-range" id="fog-range" min="5" max="100" value="35" /></label>
-                <button id="embers-toggle-btn" type="button" class="toggle-row"><span data-i18n="tgEmbers"></span><i class="switch"></i></button>
-                <label class="slider-row fx-row" id="embers-row"><span><span data-i18n="embersIntensity"></span><b class="d-mono d-accent"><span id="embers-val">35</span>%</b></span>
-                  <input type="range" class="d-range" id="embers-range" min="5" max="100" value="35" /></label>
+                <div class="pair-grid">
+                  <button id="fog-toggle-btn" type="button" class="toggle-row"><span data-i18n="tgFog"></span><i class="switch"></i></button>
+                  <button id="embers-toggle-btn" type="button" class="toggle-row"><span data-i18n="tgEmbers"></span><i class="switch"></i></button>
+                  <label class="slider-row fx-row" id="fog-row"><span><span data-i18n="fogIntensity"></span><b class="d-mono d-accent"><span id="fog-val">35</span>%</b></span>
+                    <input type="range" class="d-range" id="fog-range" min="5" max="100" value="35" /></label>
+                  <label class="slider-row fx-row" id="embers-row"><span><span data-i18n="embersIntensity"></span><b class="d-mono d-accent"><span id="embers-val">35</span>%</b></span>
+                    <input type="range" class="d-range" id="embers-range" min="5" max="100" value="35" /></label>
+                </div>
               </div>
 
               <!-- music track (optional) -->
               <div class="tab-pane" data-pane="music">
                 <span class="d-label" data-i18n="audioTitle"></span>
-                <div class="drop-zone-wrapper" id="audio-drop-zone-wrap">
-                  <input type="file" id="audio-input" accept="audio/*,.mp3,.wav,.ogg,.oga,.m4a,.aac,.flac,.opus" hidden />
-                  <label class="drop-zone small" for="audio-input" id="audio-drop-label">
-                    <span class="drop-zone-label" data-i18n="audioSelectLabel"></span>
-                    <span class="d-chip is-accent browse-btn" data-i18n="selectFile"></span>
-                  </label>
-                  <div id="audio-loaded-state" class="file-loaded-state" style="display: none;">
-                    <span id="audio-loaded-text" class="loaded-status-text"></span>
-                    <div class="btn-pair">
-                      <label for="audio-input" class="d-btn is-sm" data-i18n="change"></label>
-                      <button id="audio-clear-btn" class="d-btn is-sm is-danger" data-i18n="clear"></button>
-                    </div>
-                  </div>
-                </div>
+                <!-- the file itself is chosen on page 1 (music file card); this tab holds its volume and timing -->
+                <small class="hint-text" data-i18n="audioOnSettings"></small>
 
                 <div id="audio-controls" class="audio-controls disabled">
                   <label class="slider-row"><span><span data-i18n="audioVolume"></span><b class="d-mono d-accent"><span id="audio-volume-val">100</span>%</b></span>
@@ -315,6 +313,11 @@
                 </div>
 
                 <div id="card-editor" class="card-editor" style="display: none;">
+                  <!-- 1.0.1: the editor replaces the list while open; this button closes it -->
+                  <div class="card-editor-head">
+                    <button type="button" id="card-editor-close" class="d-btn is-ghost is-sm"><svg class="d-ico"><use href="#i-back" /></svg><span data-i18n="cardBackToList"></span></button>
+                    <span id="card-editor-title" class="card-editor-title"></span>
+                  </div>
                   <div class="drop-zone-wrapper" id="card-video-wrap">
                     <input type="file" id="card-video-input" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v" hidden />
                     <label class="drop-zone small" for="card-video-input" id="card-video-label">
@@ -363,7 +366,7 @@
             <div class="bar-actions">
               <button id="back-to-page2" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-back" /></svg><span data-i18n="backToBg"></span></button>
               <button id="export-strip-btn" class="d-btn"><svg class="d-ico"><use href="#i-strip" /></svg><span data-i18n="exportStrip"></span></button>
-              <button id="save-project-btn-2" class="d-btn"><svg class="d-ico"><use href="#i-save" /></svg><span data-i18n="saveProj"></span></button>
+              <button id="save-project-btn-2" class="d-btn is-positive"><svg class="d-ico"><use href="#i-save" /></svg><span data-i18n="saveProj"></span></button>
               <button id="to-page4" class="d-btn is-primary"><span data-i18n="finalize"></span><svg class="d-ico"><use href="#i-next" /></svg></button>
             </div>
           </header>
@@ -382,6 +385,7 @@
                     <div id="osmd-container"></div>
                     <div id="score-diamonds-layer"></div>
                   </div>
+                  <canvas id="info-canvas" class="info-canvas"></canvas>
                   <div id="score-loading" class="score-loading hidden" data-i18n="preparingScore"></div>
                 </div>
               </div>
@@ -389,7 +393,7 @@
 
             <div class="settings-strip">
               <article class="d-card d-rise" style="--i:2">
-                <div class="row"><span class="d-label" data-i18n="diamondTitle"></span><span id="lbl-diamond-count" class="d-chip"></span></div>
+                <div class="row"><span class="d-label sec" data-i18n="diamondTitle"></span><span id="lbl-diamond-count" class="d-chip"></span></div>
                 <div class="diamond-row">
                   <button id="add-diamond-btn" class="d-btn is-sm" data-i18n="diamond"></button>
                   <div id="diamond-track" class="diamond-track"></div>
@@ -401,14 +405,13 @@
               </article>
 
               <article class="d-card d-rise" style="--i:3">
-                <span class="d-label" data-i18n="secTempo"></span>
+                <span class="d-label sec" data-i18n="secTempo"></span>
                 <label class="slider-row"><span><span data-i18n="fermataStretch"></span><b class="d-mono d-accent">×<span id="fermata-val">2.00</span></b></span>
-                  <input type="range" class="d-range" id="fermata-range" min="1" max="6" step="0.05" value="2" />
-                  <small class="hint-text" data-i18n="fermataHint"></small></label>
+                  <input type="range" class="d-range" id="fermata-range" min="1" max="6" step="0.05" value="2" /></label>
               </article>
 
               <article class="d-card d-rise" style="--i:4">
-                <span class="d-label" data-i18n="secView"></span>
+                <span class="d-label sec" data-i18n="secView"></span>
                 <div class="row">
                   <span data-i18n="animTheme"></span>
                   <div class="seg" id="anim-theme-group">
@@ -419,6 +422,23 @@
                 <label class="slider-row"><span><span data-i18n="noteSize"></span><b class="d-mono d-accent"><span id="zoom-val">70</span>%</b></span>
                   <input type="range" class="d-range" id="zoom-range" min="30" max="150" value="70" /></label>
                 <label class="row"><span data-i18n="playhead"></span><input type="checkbox" class="d-toggle" id="playhead-toggle" checked /></label>
+              </article>
+
+              <!-- live values in a corner of the video (optional): tempo and notes played -->
+              <article class="d-card d-rise" style="--i:5">
+                <span class="d-label sec" data-i18n="secOverlay"></span>
+                <label class="row"><span data-i18n="ovNotes"></span><input type="checkbox" class="d-toggle" id="info-notes-toggle" /></label>
+                <label class="row"><span data-i18n="ovSpeed"></span><input type="checkbox" class="d-toggle" id="info-speed-toggle" /></label>
+                <label class="row"><span data-i18n="ovTempo"></span><input type="checkbox" class="d-toggle" id="info-bpm-toggle" /></label>
+                <div class="row">
+                  <span data-i18n="ovCorner"></span>
+                  <div class="seg corner-seg" id="info-corner-group">
+                    <button class="pill-mini active" data-corner="tl" data-i18n-title="ovTL">↖</button>
+                    <button class="pill-mini" data-corner="tr" data-i18n-title="ovTR">↗</button>
+                    <button class="pill-mini" data-corner="bl" data-i18n-title="ovBL">↙</button>
+                    <button class="pill-mini" data-corner="br" data-i18n-title="ovBR">↘</button>
+                  </div>
+                </div>
               </article>
             </div>
           </div>
@@ -434,22 +454,19 @@
           </footer>
         </section>
 
-        <!-- ===== Page 4: final video preview, summary, output, render ===== -->
+        <!-- ===== Page 4: Preview — only the finished video, as large as possible ===== -->
         <section id="page-4" class="page">
           <header class="d-bar d-glass page-bar">
-            <div class="bar-title"><span class="d-label" data-i18n="step4Sub"></span><h1 class="d-title" data-i18n="step4Title"></h1></div>
+            <div class="bar-title"><h1 class="d-title" data-i18n="step4Title"></h1></div>
             <div class="bar-actions">
-              <button id="back-to-page3" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-back" /></svg><span data-i18n="backToPreview"></span></button>
-              <button id="restart-btn" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-new" /></svg><span data-i18n="newProj"></span></button>
-              <button id="save-project-btn-3" class="d-btn"><svg class="d-ico"><use href="#i-save" /></svg><span data-i18n="saveProj"></span></button>
-              <button id="render-btn" class="d-btn is-primary render-start-btn"><svg class="d-ico"><use href="#i-render" /></svg><span data-i18n="startRender"></span></button>
+              <button id="back-to-page3" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-back" /></svg><span data-i18n="backToStep3"></span></button>
+              <button id="to-page5" class="d-btn is-primary"><span data-i18n="toExport"></span><svg class="d-ico"><use href="#i-next" /></svg></button>
             </div>
           </header>
 
-          <div class="page-body final-grid">
-            <!-- the finished video, drawn by the render's own code (reduced size, real time, with sound) -->
+          <!-- the finished video, drawn by the render's own code (reduced size, real time, with sound) -->
+          <div class="page-body preview-only">
             <article class="d-card final-preview-card d-rise" style="--i:1">
-              <span class="d-label" data-i18n="finalPreviewTitle"></span>
               <div class="final-preview-stage" id="final-preview-stage">
                 <canvas id="final-preview-canvas"></canvas>
                 <div class="final-preview-overlay" id="final-preview-overlay">
@@ -464,10 +481,24 @@
               </div>
               <div id="final-preview-sections" class="final-preview-sections"></div>
             </article>
+          </div>
+        </section>
 
+        <!-- ===== Page 5: Export — summary and output on the left, the render (animation in the centre) on the right ===== -->
+        <section id="page-5" class="page">
+          <header class="d-bar d-glass page-bar">
+            <div class="bar-title"><h1 class="d-title" data-i18n="step5Title"></h1></div>
+            <div class="bar-actions">
+              <button id="back-to-page4" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-back" /></svg><span data-i18n="backToPreview"></span></button>
+              <button id="restart-btn" class="d-btn is-ghost"><svg class="d-ico"><use href="#i-new" /></svg><span data-i18n="newProj"></span></button>
+              <button id="save-project-btn-3" class="d-btn is-positive"><svg class="d-ico"><use href="#i-save" /></svg><span data-i18n="saveProj"></span></button>
+            </div>
+          </header>
+
+          <div class="page-body export-grid">
             <div class="col">
-              <article class="d-card d-rise" style="--i:2">
-                <span class="d-label" data-i18n="secSummary"></span>
+              <article class="d-card d-rise" style="--i:1">
+                <span class="d-label sec" data-i18n="secSummary"></span>
                 <dl class="summary-list">
                   <dt data-i18n="confMusic"></dt>
                   <dd id="summary-file-name"></dd>
@@ -476,33 +507,32 @@
                 </dl>
               </article>
 
-              <article class="d-card d-rise" style="--i:3">
-                <span class="d-label" data-i18n="outputSettings"></span>
+              <article class="d-card d-rise" style="--i:2">
+                <span class="d-label sec" data-i18n="outputSettings"></span>
                 <div class="seg format-options">
                   <label class="format-pill active"><input type="radio" name="format" value="mp4" checked> MP4 · H.264</label>
                   <label class="format-pill"><input type="radio" name="format" value="webm"> WebM · VP9</label>
                 </div>
                 <label class="row"><span data-i18n="leadInToggle"></span><input type="checkbox" class="d-toggle" id="lead-in-toggle" checked /></label>
               </article>
-
-              <article class="d-card d-bracket render-card d-rise grow" style="--i:4" id="render-action-area">
-                <span class="d-label" data-i18n="secRender"></span>
-                <div class="render-visual">
-                  <img id="render-loader" class="render-loader" src="./src/assets/brand/echo-masterworks-seal.svg" alt="" draggable="false" />
-                  <div class="render-readout">
-                    <div id="render-pct" class="render-pct">0%</div>
-                    <div id="render-eta" class="render-eta"></div>
-                  </div>
-                </div>
-                <div id="success-desc" class="render-status-text"></div>
-                <div class="d-progress"><i id="render-progress-bar" style="width: 0%;"></i></div>
-                <div class="export-buttons-flex">
-                  <button id="render-pause-btn" class="d-btn is-sm" style="display:none;"></button>
-                  <button id="render-cancel-btn" class="d-btn is-sm is-danger" style="display:none;" data-i18n="cancelRender"></button>
-                  <button id="render-open-btn" class="d-btn is-sm" style="display:none;" data-i18n="showInFolder"></button>
-                </div>
-              </article>
             </div>
+
+            <!-- the render: the Echo spiral in the middle, the percentage under it, the buttons bottom right -->
+            <article class="d-card render-card d-rise" style="--i:3" id="render-action-area">
+              <div class="render-visual">
+                <canvas id="render-loader" class="render-loader" aria-hidden="true"></canvas>
+                <div id="render-pct" class="render-pct">0%</div>
+                <div id="render-eta" class="render-eta"></div>
+                <div id="success-desc" class="render-status-text"></div>
+              </div>
+              <div class="d-progress"><i id="render-progress-bar" style="width: 0%;"></i></div>
+              <div class="render-actions">
+                <button id="render-open-btn" class="d-btn is-ghost" style="display:none;" data-i18n="showInFolder"></button>
+                <button id="render-pause-btn" class="d-btn" disabled data-i18n="pauseRender"></button>
+                <button id="render-cancel-btn" class="d-btn is-danger" disabled data-i18n="cancelRender"></button>
+                <button id="render-btn" class="d-btn is-positive is-solid render-start-btn"><svg class="d-ico"><use href="#i-render" /></svg><span data-i18n="startRender"></span></button>
+              </div>
+            </article>
           </div>
         </section>
 
@@ -520,7 +550,7 @@
         <div class="modal-footer">
           <button id="modal-delete-btn" class="d-btn is-danger" style="display: none;" data-i18n="dmDelete"></button>
           <button id="modal-cancel-btn" class="d-btn is-ghost" data-i18n="cancel"></button>
-          <button id="modal-save-btn" class="d-btn is-primary" data-i18n="apply"></button>
+          <button id="modal-save-btn" class="d-btn is-positive is-solid" data-i18n="apply"></button>
         </div>
       </div>
     </div>
