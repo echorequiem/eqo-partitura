@@ -27,7 +27,7 @@
 - **Tempo that follows the score.** The tempo written in the file (♩ = 90 and so on) is applied automatically, and tempo changes become *tempo diamonds*. You can add, edit or delete diamonds anywhere on the strip.
 - **Background studio.** Use an image or a looping video as the background, with scale, opacity, position and grayscale controls — or one of the ready-made patterns (hexagons, triangles, grid, dots, waves, lines, light, staves).
 - **Piano keyboard (optional).** A keyboard along the bottom of the video; the keys of the sounding notes are pressed in the glow colour of their staff.
-- **Look templates and quick output.** Save a look and reuse it; set YouTube 4K60, Shorts or Instagram output in one click.
+- **Look templates.** Save a look and reuse it on another piece.
 - **Tap tempo, undo and autosave.** Tap along with the recording to set the tempo; <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> for the settings; a saved project keeps saving itself.
 - **Live info in the video (optional).** Notes played so far, speed in notes per second and the tempo heard right now (rit. and accel. included), set in italic serif type in a corner you choose.
 - **See the finished video first.** The Preview page plays the whole video — intro and outro screens, background, effects and sound — drawn by the render's own code, before you render.

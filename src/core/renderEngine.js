@@ -7,7 +7,7 @@ import { Muxer as WebmMuxer, StreamTarget as WebmStreamTarget } from "webm-muxer
 import { pickAudioEncoder, AudioTrackEncoder, audioEndTime, renderAudioTracks, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS } from "./audioEngine.js";
 import { PngStreamEncoder } from "./pngEncoder.js";
 import { drawCard, ensureCardFonts, cardPhaseAt, cardVideoOffset } from "./titleCards.js";
-import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont } from "./infoOverlay.js";
+import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont, infoCornerBox, meanLuma } from "./infoOverlay.js";
 import { drawKeyboard, keyboardHeight, keyboardRange } from "./keyboardOverlay.js";
 
 /** The card of a list that covers list-local time t. */
@@ -694,7 +694,19 @@ export class RenderEngine {
     if (f.keyboard) drawKeyboard(ctx, W, H, this.playbackEngine.keysAt(t), f.keyboard.range, f.colors);
     if (f.info) {
       const pb = this.playbackEngine;
-      drawInfoOverlay(ctx, W, H - kbH, f.info, infoValues(pb, t), f.infoLabels);
+      // dark type on a light picture: how light the corner is, measured twice a second (with some hysteresis)
+      const bucket = Math.floor(t * 2);
+      if (f.infoToneBucket !== bucket) {
+        f.infoToneBucket = bucket;
+        const b = infoCornerBox(W, H - kbH, f.info.corner);
+        try {
+          if (!f.toneCtx) { const tc = document.createElement("canvas"); tc.width = 32; tc.height = 16; f.toneCtx = tc.getContext("2d", { willReadFrequently: true }); }
+          f.toneCtx.drawImage(f.canvas, b.x, b.y, b.w, b.h, 0, 0, 32, 16); // a small copy: a cheap read
+          const l = meanLuma(f.toneCtx.getImageData(0, 0, 32, 16).data);
+          f.infoTone = f.infoTone === "dark" ? (l < 0.45 ? "light" : "dark") : (l > 0.55 ? "dark" : "light");
+        } catch (_) { /* keep the last tone */ }
+      }
+      drawInfoOverlay(ctx, W, H - kbH, f.info, infoValues(pb, t), f.infoLabels, f.infoTone || "light");
     }
   }
 

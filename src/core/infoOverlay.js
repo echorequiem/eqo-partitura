@@ -22,6 +22,27 @@ export function normalizeInfo(s) {
   };
 }
 
+/** Box of the overlay's corner (for measuring how light the picture is there). */
+export function infoCornerBox(W, H, corner) {
+  const u = Math.min(W, H) / 1080;
+  const w = Math.round(Math.min(W * 0.4, 520 * u));
+  const h = Math.round(Math.min(H * 0.3, 200 * u));
+  const x = corner === "tr" || corner === "br" ? W - w : 0;
+  const y = corner === "bl" || corner === "br" ? H - h : 0;
+  return { x, y, w, h };
+}
+
+/** Mean relative luminance 0..1 of RGBA pixel data (every 4th pixel). */
+export function meanLuma(data) {
+  let sum = 0;
+  let n = 0;
+  for (let i = 0; i < data.length; i += 16) {
+    sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    n++;
+  }
+  return n ? sum / n / 255 : 0;
+}
+
 export const infoActive = (info) => !!info && (info.notes || info.speed || info.bpm);
 
 /** Loads the italic serif before the first frame (canvas text falls back silently otherwise). */
@@ -46,8 +67,10 @@ export function infoValues(pb, t) {
  * @param info    overlay settings { notes, speed, bpm, corner }
  * @param vals    infoValues(…)
  * @param labels  { notes, speed, perSecond, tempo } in the interface language
+ * @param tone    "light" type for dark pictures (default), "dark" type for light ones (paper, beige, white…)
  */
-export function drawInfoOverlay(ctx, W, H, info, vals, labels = {}) {
+export function drawInfoOverlay(ctx, W, H, info, vals, labels = {}, tone = "light") {
+  const dark = tone === "dark";
   if (!infoActive(info) || !vals) return;
   const L = { notes: "Notes", speed: "Speed", perSecond: "n/s", tempo: "Tempo", ...labels };
   const lines = [];
@@ -74,7 +97,7 @@ export function drawInfoOverlay(ctx, W, H, info, vals, labels = {}) {
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = right ? "right" : "left";
   // a dark, soft shadow (legibility on light pictures) — not a glow
-  ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+  ctx.shadowColor = dark ? "rgba(255, 255, 255, 0.45)" : "rgba(0, 0, 0, 0.55)";
   ctx.shadowBlur = 14 * u;
   ctx.shadowOffsetY = 2 * u;
   const x = right ? W - marginX : marginX;
@@ -83,7 +106,9 @@ export function drawInfoOverlay(ctx, W, H, info, vals, labels = {}) {
     const size = sizes[i];
     y += size * lead;
     ctx.font = `italic ${i === 0 ? 600 : 500} ${size}px ${INFO_FONT}`;
-    ctx.fillStyle = i === 0 ? "rgba(240, 236, 246, 0.86)" : "rgba(232, 228, 240, 0.72)";
+    ctx.fillStyle = dark
+      ? (i === 0 ? "rgba(30, 26, 40, 0.9)" : "rgba(40, 36, 52, 0.78)")
+      : (i === 0 ? "rgba(240, 236, 246, 0.86)" : "rgba(232, 228, 240, 0.72)");
     ctx.fillText(text, x, y - size * 0.18);
   });
   ctx.restore();

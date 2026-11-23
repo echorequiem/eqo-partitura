@@ -19,14 +19,20 @@ All notable changes to this project are documented here. The format follows
 - **Look templates (page 3 · Templates):** save the current look under a name and apply it to another piece.
   A template holds colours, theme, note size, playhead, keyboard, effects, background placement and a
   ready-made pattern, and live info.
-- **Quick output (page 5):** YouTube 4K60, YouTube HD, Shorts · Reels (9:16) and Instagram 4:5 each set size,
-  aspect, frame rate and MP4 in one click. The current choice is shown under the buttons.
 - **Tap tempo (page 3 · Timing):** tap along with the recording (button or <kbd>T</kbd>). "Set" makes the
   result the start tempo at the beginning, or a tempo diamond at the playhead further on.
 - **Render progress on the taskbar** (yellow while paused), and a Windows notification when the video is ready
   or the render fails while the window is in the background.
 
 ### Changed
+- **New render animation, in three states:** before the render the rings breathe calmly; while rendering they
+  are cut into equal arcs that turn in opposite directions ring by ring (symmetric through the centre) and fill
+  with the accent from the centre as the video progresses; when it is done they close into full rings, a ripple
+  runs outwards and a check mark appears.
+- **Live info reads on light pictures:** on a light background (the light score theme, a beige or white picture)
+  the type turns dark with a light shadow. The video measures the corner twice a second.
+- **Keyboard drawn in depth:** front faces, bevelled black keys and their shadows; every edge on a whole pixel,
+  all white keys equally wide and every black key centred on its joint, so it is even and sharp at any size.
 - Short confirmations (undo, autosave, templates, tap tempo) appear as a small message at the bottom that goes
   by itself, instead of a dialog.
 

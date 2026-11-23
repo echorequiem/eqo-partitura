@@ -1,35 +1,30 @@
-// renderSpinner.js — the render animation on page 4: the Echo spiral.
-// Concentric rings, each cut into a top and a bottom half. While a render runs, the two halves of every ring
-// turn against each other in a wave that travels from the centre outwards, so the rings shear into a spiral
-// and fold back into circles again. The render progress fills the rings with the family colour from the
-// centre out. Flat lines only — no glow (Echo Masterworks rule: no neon).
-// Cheap: ~40 arcs per frame on a small canvas; it draws only while a render runs (rAF stops otherwise).
-// It follows the card's "rendering" class (set by main.js, also removed while paused) and reads the
-// percentage from the readout, so main.js needs no extra calls.
+// renderSpinner.js — the render animation on page 5, in three states, all point-symmetric around the centre:
+//   idle     before a render: concentric rings that breathe slowly, a soft wave going out from the centre
+//   running  rendering: every ring is cut into equal arcs; neighbouring rings turn in opposite directions, so
+//            the figure stays a balanced mandala; the progress fills the rings with the accent from the centre
+//   done     finished: the arcs close into full rings, a ripple runs outwards, a check mark draws in the middle
+// Flat lines only — no glow (Echo Masterworks rule: no neon). It follows the card's "rendering" class (main.js
+// sets it, also removes it while paused) and reads the percentage from the readout; main.js calls done() on
+// success.
 
-const RINGS = 15;
+const RINGS = 9;
 const TAU = Math.PI * 2;
-
-/** Per-ring breaks (fraction of a half, length) — fixed, so the figure has the same character every time. */
-const BREAKS = Array.from({ length: RINGS }, (_, i) => {
-  const h = (n) => ((Math.sin((i + 1) * 12.9898 + n * 78.233) * 43758.5453) % 1 + 1) % 1;
-  return { top: h(1) < 0.55 ? [0.15 + h(2) * 0.6, 0.05 + h(3) * 0.12] : null, bot: h(4) < 0.5 ? [0.15 + h(5) * 0.6, 0.05 + h(6) * 0.1] : null };
-});
+const DONE_SECONDS = 1.4;
 
 export function createRenderSpinner({ canvas, area, pctEl }) {
   const ctx = canvas.getContext("2d");
   let raf = 0;
-  let t0 = 0;
-  let tPaused = 0; // animation time kept across pauses, so it continues where it stopped
+  let state = "idle"; // idle | running | paused | done
+  let tState = 0; // seconds in the current state (kept while paused)
+  let tLast = 0;
   let size = 0;
-  let dpr = 1;
 
   const css = (name, fallback) => getComputedStyle(canvas).getPropertyValue(name).trim() || fallback;
 
   function resize() {
     const box = canvas.getBoundingClientRect();
     const s = Math.round(Math.min(box.width, box.height) || 120);
-    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (s === size && canvas.width === Math.round(s * dpr)) return;
     size = s;
     canvas.width = canvas.height = Math.round(s * dpr);
@@ -40,16 +35,18 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
     return Number.isFinite(v) ? Math.min(1, Math.max(0, v / 100)) : 0;
   }
 
-  /** t in seconds; running = animated colours; p = 0..1 progress */
-  function draw(t, running) {
+  const ease = (x) => x * x * (3 - 2 * x);
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+
+  function draw(t) {
     resize();
     const W = canvas.width;
     const c = W / 2;
-    const R = W * 0.46;
-    const line = Math.max(1.2, W * 0.016);
+    const R = W * 0.44;
+    const line = Math.max(1.2, W * 0.017);
     const ink = css("--text", "#eef2f3");
     const accent = css("--ana", "#9A15EE");
-    const p = running ? progress() : 0;
+    const p = state === "running" || state === "paused" ? progress() : state === "done" ? 1 : 0;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, W);
@@ -58,58 +55,97 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
 
     for (let i = 0; i < RINGS; i++) {
       const k = i / (RINGS - 1);
-      const r = R * (0.07 + 0.93 * k);
-      // travelling wave: inner rings lead, outer rings follow; a slow drift keeps the figure turning
-      const wave = Math.sin(t * 1.6 - k * 4.2);
-      // resting pose: calm concentric rings (the halves aligned); running: the halves shear into a spiral
-      const shear = running ? 0.55 * wave + 0.18 : 0;
-      const drift = running ? t * 0.35 : 0;
-      const filled = running && k <= p + 1e-6;
-      ctx.strokeStyle = filled ? accent : ink;
-      ctx.globalAlpha = running ? (filled ? 1 : 0.78) : 0.3;
+      const r = R * (0.16 + 0.84 * k);
+      const segs = 2 + Math.floor(i / 2) * 2; // 2, 2, 4, 4, 6, … equal arcs: symmetric through the centre
+      const dir = i % 2 ? -1 : 1;
+      let gapFrac; // share of each segment left empty
+      let rot = 0;
+      let alpha;
+      let color = ink;
 
-      // while running the two outer rings are shorter sweeps (as in the figure); at rest all are full halves
-      const span = running && i >= RINGS - 2 ? Math.PI * 0.62 : Math.PI - 0.06;
-      halfRing(c, r, Math.PI + drift + shear, span, BREAKS[i].top); // top half
-      halfRing(c, r, 0 + drift - shear, span, BREAKS[i].bot); // bottom half
+      if (state === "idle") {
+        // full rings, a slow breathing wave from the centre outwards
+        gapFrac = 0;
+        const wave = 0.5 + 0.5 * Math.sin(t * 1.4 - k * 3.2);
+        alpha = 0.16 + 0.22 * wave;
+      } else if (state === "done") {
+        // arcs close into rings, then a ripple of accent runs outwards and settles
+        const close = ease(clamp01(t / 0.5));
+        gapFrac = 0.28 * (1 - close);
+        const ripple = Math.exp(-Math.pow((t - 0.45 - k * 0.55) * 5, 2));
+        color = accent;
+        alpha = 0.55 + 0.45 * ripple;
+      } else {
+        gapFrac = 0.28;
+        const speed = 0.35 + 0.5 * (1 - k); // inner rings turn faster
+        rot = dir * t * speed;
+        const filled = k <= p + 1e-6;
+        color = filled ? accent : ink;
+        alpha = filled ? 1 : 0.55;
+        if (state === "paused") alpha *= 0.7;
+      }
+
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      if (gapFrac <= 0.001) {
+        ctx.beginPath();
+        ctx.arc(c, c, r, 0, TAU);
+        ctx.stroke();
+        continue;
+      }
+      const seg = TAU / segs;
+      const len = seg * (1 - gapFrac);
+      for (let s = 0; s < segs; s++) {
+        const a = rot + s * seg + (seg - len) / 2 + (i % 2 ? seg / 2 : 0);
+        ctx.beginPath();
+        ctx.arc(c, c, r, a, a + len);
+        ctx.stroke();
+      }
+    }
+
+    // done: a check mark drawn in the middle
+    if (state === "done") {
+      const d = ease(clamp01((t - 0.55) / 0.5));
+      if (d > 0) {
+        const s = R * 0.22;
+        const pts = [[c - s * 0.55, c + s * 0.02], [c - s * 0.12, c + s * 0.45], [c + s * 0.62, c - s * 0.4]];
+        const l1 = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
+        const l2 = Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1]);
+        let rest = d * (l1 + l2);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = ink;
+        ctx.lineWidth = line * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(pts[0][0], pts[0][1]);
+        const f1 = Math.min(1, rest / l1);
+        ctx.lineTo(pts[0][0] + (pts[1][0] - pts[0][0]) * f1, pts[0][1] + (pts[1][1] - pts[0][1]) * f1);
+        rest -= l1;
+        if (rest > 0) {
+          const f2 = rest / l2;
+          ctx.lineTo(pts[1][0] + (pts[2][0] - pts[1][0]) * f2, pts[1][1] + (pts[2][1] - pts[1][1]) * f2);
+        }
+        ctx.stroke();
+      }
     }
     ctx.globalAlpha = 1;
   }
 
-  function halfRing(c, r, start, span, brk) {
-    if (!brk) {
-      ctx.beginPath();
-      ctx.arc(c, c, r, start, start + span);
-      ctx.stroke();
-      return;
-    }
-    const [at, len] = brk;
-    const a = start + span * at;
-    const b = Math.min(start + span, a + span * len);
-    ctx.beginPath();
-    ctx.arc(c, c, r, start, a);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(c, c, r, b, start + span);
-    ctx.stroke();
-  }
-
   function frame(now) {
-    draw(tPaused + (now - t0) / 1000, true);
+    const dt = tLast ? Math.min(0.1, (now - tLast) / 1000) : 0;
+    tLast = now;
+    if (state !== "paused") tState += dt;
+    draw(tState);
+    // the finished figure stops once settled, a paused one keeps its pose; idle and running keep moving
+    if ((state === "done" && tState > DONE_SECONDS + 0.3) || state === "paused") { raf = 0; tLast = 0; return; }
     raf = requestAnimationFrame(frame);
   }
 
-  function setRunning(on) {
-    if (on && !raf) {
-      t0 = performance.now();
-      raf = requestAnimationFrame(frame);
-    } else if (!on && raf) {
-      cancelAnimationFrame(raf);
-      raf = 0;
-      tPaused += (performance.now() - t0) / 1000;
-      if (isPaused()) draw(tPaused, true); // paused: keep the last pose and colours
-      else draw(0, false); // finished / cancelled: back to the resting figure
-    }
+  function setState(next) {
+    if (next === state && raf) return;
+    if (next !== "paused" && !(state === "paused" && next === "running")) tState = 0;
+    state = next;
+    tLast = 0;
+    if (!raf) raf = requestAnimationFrame(frame);
   }
 
   // paused = the render is still going (cancel button enabled) but the card is not "rendering"
@@ -117,14 +153,19 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
 
   new MutationObserver(() => {
     const on = area.classList.contains("rendering");
-    if (!on && !isPaused()) tPaused = 0; // finished / cancelled: start fresh next time
-    setRunning(on);
+    if (on) setState("running");
+    else if (isPaused()) setState("paused");
+    else if (state === "running" || state === "paused") setState("idle"); // cancelled / failed (done() follows on success)
   }).observe(area, { attributes: true, attributeFilter: ["class"] });
 
-  // redraw the resting figure when the theme or size changes
-  new MutationObserver(() => { if (!raf) draw(tPaused, isPaused()); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-  new ResizeObserver(() => { if (!raf) draw(tPaused, isPaused()); }).observe(canvas);
+  const redraw = () => { if (!raf) draw(tState); };
+  new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  new ResizeObserver(redraw).observe(canvas);
 
-  draw(0, false);
-  return { redraw: () => { if (!raf) draw(tPaused, isPaused()); } };
+  setState("idle");
+  return {
+    redraw,
+    done: () => setState("done"),
+    idle: () => setState("idle")
+  };
 }

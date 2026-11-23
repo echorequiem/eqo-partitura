@@ -18,7 +18,7 @@ import { openVideoSink, saveImages, showInFolder, appInfo } from "./platform/out
 import { alertDialog, confirmDialog, showDialog, isDialogOpen } from "./ui/dialogs.js";
 import { BG_PRESETS, makePresetFile, drawPresetThumb } from "./core/bgPresets.js";
 import { drawKeyboard, keyboardHeight, keyboardRange } from "./core/keyboardOverlay.js";
-import { DEFAULT_INFO, normalizeInfo, drawInfoOverlay, infoValues, infoActive, ensureInfoFont } from "./core/infoOverlay.js";
+import { DEFAULT_INFO, normalizeInfo, drawInfoOverlay, infoValues, infoActive, ensureInfoFont, meanLuma } from "./core/infoOverlay.js";
 import { Sfx } from "./ui/sound.js";
 import { createLangPicker } from "./ui/langPicker.js";
 import { createRenderSpinner } from "./ui/renderSpinner.js";
@@ -167,7 +167,7 @@ const renderProgressBar = $("render-progress-bar");
 const renderActionArea = $("render-action-area");
 const renderPct = $("render-pct");
 // the Echo spiral turns while the card has the "rendering" class (setRenderVisual / pause / resume)
-createRenderSpinner({ canvas: $("render-loader"), area: renderActionArea, pctEl: renderPct });
+const renderSpinner = createRenderSpinner({ canvas: $("render-loader"), area: renderActionArea, pctEl: renderPct });
 const renderEta = $("render-eta");
 const successDesc = $("success-desc");
 const restartBtn = $("restart-btn");
@@ -380,33 +380,7 @@ function updateConfigSummary() {
   configSummaryText.textContent =
     `${appState.fps} FPS • ${resMap[appState.resolution] || appState.resolution} • ${appState.aspect.replace("-", ":")}` +
     (appState.bitrate ? ` • ${appState.bitrate} Mbps` : "");
-  const out = document.getElementById("out-current");
-  if (out) out.textContent = configSummaryText.textContent + " • " + (appState.format === "webm" ? "WebM" : "MP4");
-  outPresetButtons.forEach((b) => {
-    const p = OUTPUT_PRESETS[b.dataset.outpreset];
-    b.classList.toggle("active", !!p && p.aspect === appState.aspect && p.res === appState.resolution &&
-      p.fps === appState.fps && appState.format === "mp4");
-  });
 }
-
-// ---- Output presets (page 5): the same choices as page 1, set in one click ----
-const OUTPUT_PRESETS = {
-  yt4k: { aspect: "16-9", res: "4k", fps: 60 },
-  ythd: { aspect: "16-9", res: "1080p", fps: 60 },
-  shorts: { aspect: "9-16", res: "1080p", fps: 60 },
-  insta: { aspect: "4-5", res: "1080p", fps: 30 }
-};
-const outPresetButtons = $$("#out-preset-group [data-outpreset]");
-outPresetButtons.forEach((b) => b.addEventListener("click", () => {
-  const p = OUTPUT_PRESETS[b.dataset.outpreset];
-  if (!p || appState.rendering) return;
-  const press = (list, attr, v) => { const btn = list.find((x) => x.dataset[attr] === String(v)); if (btn) btn.click(); };
-  if (appState.aspect !== p.aspect) press(aspectButtons, "aspect", p.aspect);
-  press(resButtons, "res", p.res);
-  press(fpsButtons, "fps", p.fps);
-  setFormat("mp4");
-  updateConfigSummary();
-}));
 
 // ---- Look templates (page 3): colours, theme, note size, playhead, effects, background placement, live info ----
 const TEMPLATES_KEY = "eqo.lookTemplates";
@@ -937,6 +911,30 @@ function syncBgControls() {
   bgPosXRange.value = s.posX; bgPosXVal.textContent = String(s.posX);
   bgPosYRange.value = s.posY; bgPosYVal.textContent = String(s.posY);
 }
+
+// how light the background picture is (0..1), for the live-info type colour in the preview
+function measureBgLuma(el) {
+  try {
+    const w = el.videoWidth || el.naturalWidth;
+    const h = el.videoHeight || el.naturalHeight;
+    if (!w || !h) return;
+    const c = document.createElement("canvas");
+    c.width = 32;
+    c.height = 18;
+    const cx = c.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(el, 0, 0, 32, 18);
+    appState.bgLuma = meanLuma(cx.getImageData(0, 0, 32, 18).data);
+    drawInfoPreview(engine.getTime());
+  } catch (_) { /* unreadable: keep the last value */ }
+}
+/** "dark" type on a light stage (light score theme without a picture, or a light picture), "light" otherwise. */
+function previewInfoTone() {
+  if (!appState.bgSettings.type) return appState.animTheme === "light" ? "dark" : "light";
+  const l = (appState.bgLuma ?? 0) * ((appState.bgSettings.opacity ?? 100) / 100);
+  return l > 0.5 ? "dark" : "light";
+}
+previewBgImg.addEventListener("load", () => measureBgLuma(previewBgImg));
+previewBgVideo.addEventListener("loadeddata", () => measureBgLuma(previewBgVideo));
 
 function applyBackgroundFile(file) {
   const isVideo = (file.type || "").startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
@@ -1894,6 +1892,7 @@ keyboardToggle.addEventListener("change", (e) => setKeyboard(e.target.checked));
 
 function setAnimTheme(theme) {
   appState.animTheme = theme;
+  if (appState.isScoreLoaded) requestAnimationFrame(() => drawInfoPreview(engine.getTime()));
   animThemeButtons.forEach((b) => b.classList.toggle("active", b.dataset.animtheme === theme));
   viewportEl.classList.toggle("dark-anim-theme", theme === "dark");
   viewportEl.classList.toggle("light-anim-theme", theme === "light");
@@ -2347,6 +2346,7 @@ renderBtn.addEventListener("click", async () => {
     if (result.audioDropped) msg += " " + tr("renderAudioDropped");
     setStatusText(msg, "ok");
     Sfx.chime();
+    renderSpinner.done();
     systemNotify(tr("notifyDoneTitle"), result.fileName || "");
     renderOpenBtn.style.display = result.path ? "" : "none";
   } catch (err) {
@@ -2567,7 +2567,7 @@ function drawInfoPreview(t) {
   }
   if (!infoActive(appState.info)) return;
   appState.infoLabels = infoLabels();
-  drawInfoOverlay(ctx, cw, ch - kbH, appState.info, infoValues(engine, t), appState.infoLabels);
+  drawInfoOverlay(ctx, cw, ch - kbH, appState.info, infoValues(engine, t), appState.infoLabels, previewInfoTone());
 }
 infoBpmToggle.addEventListener("change", () => setInfo({ ...appState.info, bpm: infoBpmToggle.checked }));
 infoSpeedToggle.addEventListener("change", () => setInfo({ ...appState.info, speed: infoSpeedToggle.checked }));

@@ -27,7 +27,7 @@
 - **Notadaki tempo otomatik.** Dosyada yazan tempo (♩ = 90 vb.) otomatik uygulanır; tempo değişimleri *elmas* işaretçilere dönüşür. Elmasları şeridin istediğiniz yerine ekleyebilir, düzenleyebilir ve silebilirsiniz.
 - **Arka plan stüdyosu.** Arka plana görsel ya da döngülü video koyabilirsiniz; ölçek, opaklık, konum ve siyah-beyaz ayarlarıyla — ya da hazır desenlerden birini seçebilirsiniz (altıgen, üçgen, ızgara, noktalar, dalgalar, çizgiler, ışık, porte).
 - **Piyano klavyesi (isteğe bağlı).** Videonun altında bir klavye; çalan notaların tuşları kendi portelerinin parlama rengiyle basılır.
-- **Görünüm şablonları ve hazır çıktı.** Bir görünümü kaydedip başka eserlerde kullanın; YouTube 4K60, Shorts ya da Instagram çıktısını tek tıkla seçin.
+- **Görünüm şablonları.** Bir görünümü kaydedip başka eserlerde kullanın.
 - **Tap tempo, geri al ve otomatik kayıt.** Kayıtla birlikte dokunarak tempoyu bulun; ayarlarda <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd>; kaydedilmiş proje kendini kaydetmeye devam eder.
 - **Videoda canlı bilgi (isteğe bağlı).** O ana kadar çalınan nota sayısı, saniyedeki nota sayısıyla hız ve o an duyulan tempo (rit. ve accel. dahil); seçtiğiniz köşede, italik serif yazıyla.
 - **Önce bitmiş videoyu gör.** Önizleme sayfası, render almadan önce videonun tamamını oynatır: açılış ve kapanış ekranları, arka plan, efektler ve ses; render'ın kendi çizim koduyla.
