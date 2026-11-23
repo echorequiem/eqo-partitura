@@ -88,6 +88,15 @@ export function drawKeyboard(ctx, W, H, active, range, colors, alpha = 1) {
     ctx.beginPath();
     roundRectBottom(ctx, x + gap / 2, top, ww - gap, kh - gap / 2, r);
     ctx.fill();
+    // every C carries its octave (C4 = middle C), small and grey at the bottom of the key
+    if (m % 12 === 0) {
+      const fs = Math.max(6, Math.min(ww * 0.42, kh * 0.13));
+      ctx.font = `600 ${fs}px "Montserrat Variable", Montserrat, "Segoe UI", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = on ? "rgba(255,255,255,0.85)" : "rgba(40,36,52,0.55)";
+      ctx.fillText(`C${Math.floor(m / 12) - 1}`, x + ww / 2, H - Math.max(3, kh * 0.07));
+    }
   });
 
   // black keys, over the gap between two white keys
