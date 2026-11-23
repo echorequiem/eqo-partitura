@@ -17,6 +17,7 @@ import * as projectStore from "./platform/projectStore.js";
 import { openVideoSink, saveImages, showInFolder, appInfo } from "./platform/output.js";
 import { alertDialog, confirmDialog, showDialog, isDialogOpen } from "./ui/dialogs.js";
 import { BG_PRESETS, makePresetFile, drawPresetThumb } from "./core/bgPresets.js";
+import { drawKeyboard, keyboardHeight, keyboardRange } from "./core/keyboardOverlay.js";
 import { DEFAULT_INFO, normalizeInfo, drawInfoOverlay, infoValues, infoActive, ensureInfoFont } from "./core/infoOverlay.js";
 import { Sfx } from "./ui/sound.js";
 import { createLangPicker } from "./ui/langPicker.js";
@@ -198,6 +199,7 @@ const appState = {
   format: "mp4",
   isScoreLoaded: false,
   showPlayhead: true,
+  keyboard: false, // piano keyboard along the bottom of the video (core/keyboardOverlay.js)
   info: { ...DEFAULT_INFO }, // live tempo / notes played in a corner of the video (core/infoOverlay.js)
   leadIn: true, // video only: notes settle in before the music (LEAD_IN_SECONDS) and are wiped away after it
   tempoDiamonds: [], // { id, xPx, ratio, bpm }; ratio = xPx / svg width (zoom-independent)
@@ -276,6 +278,22 @@ function describeError(err) {
   };
   if (err && err.code && map[err.code]) return tr(map[err.code]);
   return err && err.message ? err.message : String(err);
+}
+
+// a short message at the bottom of the window that goes by itself (undo, autosave, templates, tap tempo)
+let toastEl = null;
+let toastTimer = 0;
+function toast(message) {
+  if (!toastEl) {
+    toastEl = document.createElement("div");
+    toastEl.className = "app-toast d-glass";
+    toastEl.setAttribute("role", "status");
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = message;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
 }
 
 function notify(message, kind = "info") {
@@ -362,7 +380,129 @@ function updateConfigSummary() {
   configSummaryText.textContent =
     `${appState.fps} FPS • ${resMap[appState.resolution] || appState.resolution} • ${appState.aspect.replace("-", ":")}` +
     (appState.bitrate ? ` • ${appState.bitrate} Mbps` : "");
+  const out = document.getElementById("out-current");
+  if (out) out.textContent = configSummaryText.textContent + " • " + (appState.format === "webm" ? "WebM" : "MP4");
+  outPresetButtons.forEach((b) => {
+    const p = OUTPUT_PRESETS[b.dataset.outpreset];
+    b.classList.toggle("active", !!p && p.aspect === appState.aspect && p.res === appState.resolution &&
+      p.fps === appState.fps && appState.format === "mp4");
+  });
 }
+
+// ---- Output presets (page 5): the same choices as page 1, set in one click ----
+const OUTPUT_PRESETS = {
+  yt4k: { aspect: "16-9", res: "4k", fps: 60 },
+  ythd: { aspect: "16-9", res: "1080p", fps: 60 },
+  shorts: { aspect: "9-16", res: "1080p", fps: 60 },
+  insta: { aspect: "4-5", res: "1080p", fps: 30 }
+};
+const outPresetButtons = $$("#out-preset-group [data-outpreset]");
+outPresetButtons.forEach((b) => b.addEventListener("click", () => {
+  const p = OUTPUT_PRESETS[b.dataset.outpreset];
+  if (!p || appState.rendering) return;
+  const press = (list, attr, v) => { const btn = list.find((x) => x.dataset[attr] === String(v)); if (btn) btn.click(); };
+  if (appState.aspect !== p.aspect) press(aspectButtons, "aspect", p.aspect);
+  press(resButtons, "res", p.res);
+  press(fpsButtons, "fps", p.fps);
+  setFormat("mp4");
+  updateConfigSummary();
+}));
+
+// ---- Look templates (page 3): colours, theme, note size, playhead, effects, background placement, live info ----
+const TEMPLATES_KEY = "eqo.lookTemplates";
+const MAX_TEMPLATES = 30;
+const templateModal = $("template-modal");
+const templateList = $("template-list");
+const templateName = $("template-name");
+function loadTemplates() {
+  try {
+    const list = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((t) => t && typeof t.name === "string" && t.look).slice(0, MAX_TEMPLATES) : [];
+  } catch (_) {
+    return [];
+  }
+}
+function storeTemplates(list) {
+  try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list.slice(0, MAX_TEMPLATES))); } catch (_) { /* storage full / blocked */ }
+}
+function currentLook() {
+  const s = collectSettings();
+  return {
+    activeColor: s.activeColor, activeColor2: s.activeColor2, dualColor: s.dualColor, animTheme: s.animTheme,
+    zoom: s.zoom, showPlayhead: s.showPlayhead, info: s.info, fx: s.fx, keyboard: s.keyboard,
+    bg: { scale: s.bg.scale, opacity: s.bg.opacity, posX: s.bg.posX, posY: s.bg.posY, grayscale: s.bg.grayscale, preset: s.bg.preset }
+  };
+}
+function applyLook(look) {
+  const cur = collectSettings();
+  const zoomBefore = Number(zoomRange.value);
+  const { preset, ...bg } = look.bg || {};
+  applySettings({ ...cur, ...look, bg: { ...cur.bg, ...bg } }, { keepCards: true });
+  if (Number(zoomRange.value) !== zoomBefore) applyZoom();
+  // a template made with a ready-made background brings it along (a picture of the user's own stays)
+  if (preset && BG_PRESETS.includes(preset) && preset !== appState.bgSettings.preset) applyPreset(preset);
+}
+function renderTemplateList() {
+  const list = loadTemplates();
+  templateList.textContent = "";
+  if (!list.length) {
+    const p = document.createElement("div");
+    p.className = "template-empty";
+    p.textContent = tr("tplEmpty");
+    templateList.appendChild(p);
+    return;
+  }
+  list.forEach((t, i) => {
+    const row = document.createElement("div");
+    row.className = "template-item";
+    const sw = document.createElement("span");
+    sw.className = "tpl-swatch";
+    sw.style.background = normalizeHex(t.look.activeColor) || "#888";
+    const name = document.createElement("span");
+    name.className = "tpl-name";
+    name.textContent = t.name;
+    const use = document.createElement("button");
+    use.className = "d-btn is-sm is-positive";
+    use.textContent = tr("apply");
+    use.addEventListener("click", () => {
+      applyLook(t.look);
+      templateModal.style.display = "none";
+      toast(tr("tplApplied", { name: t.name }));
+    });
+    const del = document.createElement("button");
+    del.className = "d-btn is-sm is-danger";
+    del.textContent = tr("tplDelete");
+    del.addEventListener("click", () => {
+      const all = loadTemplates();
+      all.splice(i, 1);
+      storeTemplates(all);
+      renderTemplateList();
+    });
+    row.append(sw, name, use, del);
+    templateList.appendChild(row);
+  });
+}
+$("templates-btn").addEventListener("click", () => {
+  renderTemplateList();
+  templateName.value = "";
+  templateModal.style.display = "flex";
+  templateName.focus();
+});
+$("template-close").addEventListener("click", () => { templateModal.style.display = "none"; });
+templateModal.addEventListener("mousedown", (e) => { if (e.target === templateModal) templateModal.style.display = "none"; });
+function saveTemplate() {
+  const name = templateName.value.trim().slice(0, 40);
+  if (!name) { templateName.focus(); return; }
+  const list = loadTemplates().filter((t) => t.name !== name); // same name: replaced
+  list.unshift({ name, look: currentLook() });
+  storeTemplates(list);
+  templateName.value = "";
+  renderTemplateList();
+  toast(tr("tplSaved", { name }));
+}
+$("template-save").addEventListener("click", saveTemplate);
+templateName.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveTemplate(); } });
+
 
 function refreshDynamicTexts() {
   refreshMusicFileState();
@@ -430,6 +570,8 @@ function refitViewports() {
     trackEl.dataset.currentX = String(translateX);
   }
   if (currentPage === 3 && appState.isScoreLoaded && after > 0) measureLayout();
+  syncKeyboardShift();
+  if (appState.isScoreLoaded) drawInfoPreview(engine.getTime());
 }
 
 /** Measurements for the renderer. CRITICAL: only valid while page 3 is visible (hidden pages measure 0). */
@@ -638,6 +780,7 @@ function updateColorVars() {
   const same = (el) => (el.dataset.color || "").toUpperCase() === hex;
   colorBtns.forEach((b) => b.classList.toggle("active", same(b)));
   savedColorsEl.querySelectorAll(".color-btn").forEach((b) => b.classList.toggle("active", same(b)));
+  if (appState.keyboard && appState.isScoreLoaded) drawInfoPreview(engine.getTime());
 }
 
 function applyActiveColor(hex) {
@@ -1579,6 +1722,7 @@ async function ensureScoreLoaded() {
       try { applyScoreMeta(sheet && sheet.TitleString, sheet && sheet.ComposerString); } catch (_) { /* optional */ }
     }
     appState.isScoreLoaded = true;
+    undoReset();
   } finally {
     setScoreLoading(false);
   }
@@ -1732,6 +1876,21 @@ function setPlayhead(on) {
   viewportEl.classList.toggle("hide-playhead", !on);
 }
 playheadToggle.addEventListener("change", (e) => setPlayhead(e.target.checked));
+
+// ---- Keyboard view: a piano along the bottom, the keys of the sounding notes pressed in the glow colour ----
+const keyboardToggle = $("keyboard-toggle");
+function setKeyboard(on) {
+  appState.keyboard = !!on;
+  keyboardToggle.checked = appState.keyboard;
+  viewportEl.classList.toggle("has-keyboard", appState.keyboard);
+  syncKeyboardShift();
+  drawInfoPreview(engine.getTime());
+}
+function syncKeyboardShift() {
+  const h = appState.keyboard ? keyboardHeight(viewportEl.clientWidth, viewportEl.clientHeight) : 0;
+  viewportEl.style.setProperty("--kb-shift", `${Math.round(h / 2)}px`);
+}
+keyboardToggle.addEventListener("change", (e) => setKeyboard(e.target.checked));
 
 function setAnimTheme(theme) {
   appState.animTheme = theme;
@@ -1903,6 +2062,54 @@ function renderAllDiamonds() {
   });
 }
 
+
+// ---- Tap tempo: the median of the last taps; a pause of 2.5 s starts a new count ----
+const tapBtn = $("tap-btn");
+const tapBpmEl = $("tap-bpm");
+const tapApplyBtn = $("tap-apply");
+const tapTimes = [];
+let tapBpm = 0;
+function tapTempo() {
+  const now = performance.now();
+  if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2500) tapTimes.length = 0;
+  tapTimes.push(now);
+  if (tapTimes.length > 9) tapTimes.shift();
+  tapBtn.classList.add("tapped");
+  setTimeout(() => tapBtn.classList.remove("tapped"), 90);
+  if (tapTimes.length < 3) {
+    tapBpmEl.textContent = "♩ …";
+    return;
+  }
+  const gaps = tapTimes.slice(1).map((t, i) => t - tapTimes[i]).sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)];
+  tapBpm = clamp(Math.round((60000 / median) * 10) / 10, 20, 400);
+  tapBpmEl.textContent = `♩ ${tapBpm}`;
+  tapApplyBtn.disabled = !appState.isScoreLoaded;
+}
+tapBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); tapTempo(); });
+tapBtn.addEventListener("click", (e) => { if (e.detail === 0) tapTempo(); }); // keyboard activation
+tapApplyBtn.addEventListener("click", () => {
+  if (!tapBpm || !appState.isScoreLoaded) return;
+  const layout = measureLayout();
+  const translateX = Number(trackEl.dataset.currentX || 0);
+  const x = layout && layout.svgW ? clamp(viewportEl.clientWidth / 2 - translateX, 0, layout.svgW) : 0;
+  const first = engine.steps && engine.steps.length ? engine.steps[0].x : 0;
+  if (!layout || !layout.svgW || x <= first + 2) {
+    // at the beginning: the start tempo
+    bpmInput.value = String(tapBpm);
+    engine.setBpm(bpmInput.value);
+    toast(tr("tapSetStart", { bpm: tapBpm }));
+  } else {
+    // later in the score: a tempo diamond at the playhead (one already there is updated)
+    const near = appState.tempoDiamonds.find((d) => Math.abs(d.xPx - x) < 3);
+    if (near) near.bpm = tapBpm;
+    else appState.tempoDiamonds.push({ id: Date.now(), xPx: x, ratio: x / layout.svgW, bpm: tapBpm });
+    engine.setDiamonds(appState.tempoDiamonds);
+    renderAllDiamonds();
+    toast(tr("tapSetDiamond", { bpm: tapBpm }));
+  }
+});
+
 addDiamondBtn.addEventListener("click", () => {
   if (!appState.isScoreLoaded) return;
   if (engine.isPlaying) {
@@ -1995,6 +2202,17 @@ function setStatusText(text, kind = "") {
 }
 
 /** The Echo spiral (ui/renderSpinner.js) turns only while a render runs (class "rendering"); otherwise it rests. */
+// taskbar progress and a system notification (desktop only; no-ops in the browser)
+const desktopApp = () => (window.echo && window.echo.app) || null;
+function taskbarProgress(value, mode) {
+  const a = desktopApp();
+  if (a && a.progress) a.progress(value, mode).catch(() => {});
+}
+function systemNotify(title, body) {
+  const a = desktopApp();
+  if (a && a.notify) a.notify(title, body).catch(() => {});
+}
+
 function setRenderVisual(running, pct = null) {
   renderActionArea.classList.toggle("rendering", running);
   if (pct !== null) renderPct.textContent = `${Math.round(pct)}%`;
@@ -2022,6 +2240,7 @@ function setFormat(format) {
     radio.checked = active;
     p.classList.toggle("active", active);
   });
+  updateConfigSummary();
 }
 
 formatPills.forEach((pill) => {
@@ -2039,6 +2258,7 @@ renderCancelBtn.addEventListener("click", () => renderEngine.cancel());
 
 // pause: the render loop just waits (no CPU load)
 let pausedAt = 0;
+let lastRenderPct = 0;
 renderPauseBtn.addEventListener("click", () => {
   if (!appState.rendering) return;
   if (renderEngine.paused) {
@@ -2046,12 +2266,14 @@ renderPauseBtn.addEventListener("click", () => {
     renderPausedTotal += performance.now() - pausedAt;
     renderPauseBtn.textContent = tr("pauseRender");
     renderActionArea.classList.add("rendering");
+    taskbarProgress(lastRenderPct / 100, "normal");
   } else {
     renderEngine.pause();
     pausedAt = performance.now();
     renderPauseBtn.textContent = tr("resumeRender");
     renderActionArea.classList.remove("rendering"); // the seal stops while paused
     renderEta.textContent = tr("renderPaused");
+    taskbarProgress(lastRenderPct / 100, "paused");
   }
 });
 renderOpenBtn.addEventListener("click", () => showInFolder(appState.lastOutputPath).catch(console.error));
@@ -2071,6 +2293,8 @@ renderBtn.addEventListener("click", async () => {
   renderPausedTotal = 0;
   const onProgress = (info) => {
     const pct = info.pct ?? 0;
+    lastRenderPct = pct;
+    if (!renderEngine.paused) taskbarProgress(pct / 100, "normal");
     renderProgressBar.style.width = `${pct}%`;
     renderPct.textContent = `${pct}%`;
     let status;
@@ -2123,6 +2347,7 @@ renderBtn.addEventListener("click", async () => {
     if (result.audioDropped) msg += " " + tr("renderAudioDropped");
     setStatusText(msg, "ok");
     Sfx.chime();
+    systemNotify(tr("notifyDoneTitle"), result.fileName || "");
     renderOpenBtn.style.display = result.path ? "" : "none";
   } catch (err) {
     if (err && err.code === "CANCELLED") {
@@ -2132,9 +2357,12 @@ renderBtn.addEventListener("click", async () => {
     } else {
       console.error("Render hatası:", err);
       setStatusText(tr("renderFailed") + describeError(err), "error");
+      systemNotify(tr("notifyFailTitle"), describeError(err));
     }
   } finally {
     setRenderUi(false);
+    lastRenderPct = 0;
+    taskbarProgress(-1);
   }
 });
 
@@ -2329,9 +2557,17 @@ function drawInfoPreview(t) {
   if (infoCanvas.width !== cw || infoCanvas.height !== ch) { infoCanvas.width = cw; infoCanvas.height = ch; }
   const ctx = infoCanvas.getContext("2d");
   ctx.clearRect(0, 0, cw, ch);
-  if (!appState.isScoreLoaded || !infoActive(appState.info)) return;
+  if (!appState.isScoreLoaded) return;
+  let kbH = 0;
+  if (appState.keyboard) {
+    const r = engine.keyRange;
+    const colors = [appState.activeColor, appState.dualColor ? appState.activeColor2 || appState.activeColor : appState.activeColor];
+    drawKeyboard(ctx, cw, ch, t >= 0 ? engine.keysAt(t) : null, keyboardRange(r && r.lo, r && r.hi), colors);
+    kbH = keyboardHeight(cw, ch);
+  }
+  if (!infoActive(appState.info)) return;
   appState.infoLabels = infoLabels();
-  drawInfoOverlay(ctx, cw, ch, appState.info, infoValues(engine, t), appState.infoLabels);
+  drawInfoOverlay(ctx, cw, ch - kbH, appState.info, infoValues(engine, t), appState.infoLabels);
 }
 infoBpmToggle.addEventListener("change", () => setInfo({ ...appState.info, bpm: infoBpmToggle.checked }));
 infoSpeedToggle.addEventListener("change", () => setInfo({ ...appState.info, speed: infoSpeedToggle.checked }));
@@ -2357,6 +2593,7 @@ function collectSettings() {
     fermataStretch: appState.fermataStretch,
     showPlayhead: appState.showPlayhead,
     info: { ...appState.info },
+    keyboard: appState.keyboard,
     diamonds: appState.tempoDiamonds.map((d) => ({ id: d.id, ratio: d.ratio, bpm: d.bpm })),
     bg: {
       scale: appState.bgSettings.scale,
@@ -2392,7 +2629,7 @@ function cardsFromSettings(kind, saved) {
   });
 }
 
-function applySettings(s) {
+function applySettings(s, { keepCards = false } = {}) {
   if (s.fps) { appState.fps = Number(s.fps); activatePill(fpsButtons, "fps", s.fps); }
   if (s.aspect && ASPECTS[s.aspect]) { appState.aspect = s.aspect; activatePill(aspectButtons, "aspect", s.aspect); }
   if (s.resolution) { appState.resolution = s.resolution; activatePill(resButtons, "res", s.resolution); }
@@ -2410,6 +2647,7 @@ function applySettings(s) {
   setFermataStretch(s.fermataStretch ?? DEFAULT_FERMATA_STRETCH);
   setPlayhead(s.showPlayhead !== false);
   setInfo(normalizeInfo(s.info));
+  setKeyboard(!!s.keyboard);
   if (s.bg) {
     Object.assign(appState.bgSettings, {
       scale: s.bg.scale ?? 100,
@@ -2418,7 +2656,7 @@ function applySettings(s) {
       posY: s.bg.posY ?? 0,
       grayscale: !!s.bg.grayscale,
       loop: s.bg.loop !== false,
-      preset: BG_PRESETS.includes(s.bg.preset) ? s.bg.preset : null
+      preset: keepCards ? appState.bgSettings.preset : (BG_PRESETS.includes(s.bg.preset) ? s.bg.preset : null)
     });
     syncBgControls();
     applyBgTransforms();
@@ -2438,6 +2676,11 @@ function applySettings(s) {
   }
   applyFx();
   setLeadIn(s.leadIn !== false);
+  if (keepCards) { // undo / redo: the screens and their videos stay as they are
+    updateConfigSummary();
+    refitViewports();
+    return;
+  }
   clearCards();
   if (s.cards) {
     appState.cards.intro = cardsFromSettings("intro", s.cards.intro);
@@ -2464,8 +2707,77 @@ function isProjectDirty() {
   return s !== null && s !== savedSignature;
 }
 
+// ---- Undo / redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z): snapshots of the settings, taken when they settle ----
+// Screens (intro / outro) and the files themselves are not part of it; a ready-made background keeps its picture.
+const UNDO_LIMIT = 100;
+const undoStack = [];
+const redoStack = [];
+let undoLast = null; // the settled state the next change is compared with
+let undoRestoring = false;
+const undoSnapshot = () => {
+  const s = collectSettings();
+  delete s.cards;
+  return JSON.stringify(s);
+};
+function undoWatch() {
+  if (!appState.isScoreLoaded || appState.rendering || undoRestoring || zoomBusy) return;
+  if (document.querySelector(":active")) return; // a slider is still being dragged
+  const now = undoSnapshot();
+  if (undoLast === null) { undoLast = now; return; }
+  if (now === undoLast) return;
+  undoStack.push(undoLast);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  undoLast = now;
+}
+function undoReset() {
+  undoStack.length = 0;
+  redoStack.length = 0;
+  undoLast = null;
+}
+function restoreSnapshot(json) {
+  const s = JSON.parse(json);
+  const zoomBefore = Number(zoomRange.value);
+  undoRestoring = true;
+  try {
+    applySettings(s, { keepCards: true });
+    engine.setBpm(bpmInput.value);
+    appState.tempoDiamonds = (s.diamonds || []).map((d, i) => ({ id: d.id || Date.now() + i, ratio: d.ratio, bpm: d.bpm, xPx: 0 }));
+    syncDiamondPositions();
+    engine.setDiamonds(appState.tempoDiamonds);
+    renderAllDiamonds();
+    updateMusicEnd();
+    refreshSummary();
+  } finally {
+    undoRestoring = false;
+  }
+  undoLast = undoSnapshot(); // as it now stands (applying may normalise a value)
+  if (Number(zoomRange.value) !== zoomBefore) applyZoom();
+}
+function undoStep(dir) {
+  if (!appState.isScoreLoaded || appState.rendering) return;
+  undoWatch(); // a change not yet recorded becomes a step first
+  const from = dir < 0 ? undoStack : redoStack;
+  const to = dir < 0 ? redoStack : undoStack;
+  if (!from.length) {
+    toast(tr(dir < 0 ? "undoNone" : "redoNone"));
+    return;
+  }
+  to.push(undoLast);
+  restoreSnapshot(from.pop());
+  toast(tr(dir < 0 ? "undoDone" : "redoDone"));
+}
+setInterval(undoWatch, 400);
+
+// ---- Autosave: a project saved once is saved again quietly every two minutes while it has changes ----
+const AUTOSAVE_MS = 120000;
+setInterval(() => {
+  if (!appState.projectId || appState.rendering || !isProjectDirty() || isDialogOpen()) return;
+  saveCurrentProject({ quiet: true });
+}, AUTOSAVE_MS);
+
 /** @returns true when the project was saved */
-async function saveCurrentProject() {
+async function saveCurrentProject({ quiet = false } = {}) {
   if (!projectStore.isAvailable()) {
     notify(tr("projUnavailable"));
     return false;
@@ -2489,7 +2801,8 @@ async function saveCurrentProject() {
     appState.projectId = id;
     savedSignature = projectSignature();
     refreshProjectsList();
-    notify(tr("projSaved", { name }));
+    if (quiet) toast(tr("projAutoSaved", { name }));
+    else notify(tr("projSaved", { name }));
     return true;
   } catch (err) {
     console.error(err);
@@ -2647,8 +2960,14 @@ function isTypingTarget(el) {
 
 document.addEventListener("keydown", (e) => {
   if (isDialogOpen()) return;
-  const modalOpen = diamondModal.style.display === "flex" || stripExportModal.style.display === "flex";
+  const modalOpen = diamondModal.style.display === "flex" || stripExportModal.style.display === "flex" ||
+    templateModal.style.display === "flex";
 
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && ["z", "y"].includes(e.key.toLowerCase()) && !modalOpen && !isTypingTarget(e.target)) {
+    e.preventDefault();
+    undoStep(e.key.toLowerCase() === "y" || e.shiftKey ? 1 : -1);
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
     e.preventDefault();
     if (!appState.rendering && !modalOpen) saveCurrentProject();
@@ -2657,6 +2976,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && modalOpen) {
     closeDiamondModal();
     stripExportModal.style.display = "none";
+    templateModal.style.display = "none";
     return;
   }
   if (modalOpen || isTypingTarget(e.target)) return;
@@ -2673,6 +2993,8 @@ document.addEventListener("keydown", (e) => {
     } else if (e.key === "End") {
       e.preventDefault();
       seekTo(engine.playEnd);
+    } else if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!e.repeat) tapTempo();
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
       const dir = e.key === "ArrowRight" ? 1 : -1;

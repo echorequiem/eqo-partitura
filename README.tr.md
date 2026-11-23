@@ -26,6 +26,9 @@
 - **Dur işaretleri (fermata) hesaba katılır.** Fermatalı notalar varsayılan olarak ×2.0 tutulur (MuseScore ile aynı); bu oranı ×1–×6 arasında değiştirebilirsiniz.
 - **Notadaki tempo otomatik.** Dosyada yazan tempo (♩ = 90 vb.) otomatik uygulanır; tempo değişimleri *elmas* işaretçilere dönüşür. Elmasları şeridin istediğiniz yerine ekleyebilir, düzenleyebilir ve silebilirsiniz.
 - **Arka plan stüdyosu.** Arka plana görsel ya da döngülü video koyabilirsiniz; ölçek, opaklık, konum ve siyah-beyaz ayarlarıyla — ya da hazır desenlerden birini seçebilirsiniz (altıgen, üçgen, ızgara, noktalar, dalgalar, çizgiler, ışık, porte).
+- **Piyano klavyesi (isteğe bağlı).** Videonun altında bir klavye; çalan notaların tuşları kendi portelerinin parlama rengiyle basılır.
+- **Görünüm şablonları ve hazır çıktı.** Bir görünümü kaydedip başka eserlerde kullanın; YouTube 4K60, Shorts ya da Instagram çıktısını tek tıkla seçin.
+- **Tap tempo, geri al ve otomatik kayıt.** Kayıtla birlikte dokunarak tempoyu bulun; ayarlarda <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd>; kaydedilmiş proje kendini kaydetmeye devam eder.
 - **Videoda canlı bilgi (isteğe bağlı).** O ana kadar çalınan nota sayısı, saniyedeki nota sayısıyla hız ve o an duyulan tempo (rit. ve accel. dahil); seçtiğiniz köşede, italik serif yazıyla.
 - **Önce bitmiş videoyu gör.** Önizleme sayfası, render almadan önce videonun tamamını oynatır: açılış ve kapanış ekranları, arka plan, efektler ve ses; render'ın kendi çizim koduyla.
 - **İsteğe bağlı müzik parçası.** MP3 / WAV / OGG / M4A / FLAC ekleyin ve başlangıç kaydırmasıyla (milisaniye hassasiyetinde) notalarla hizalayın. Ses seviyesini ayarlayabilir, isterseniz videoyu müzik bitene kadar uzatabilirsiniz. Ses videoya gömülür, önizlemede de senkron çalar.
@@ -74,7 +77,7 @@ AppImage statik AppImage çalışma zamanını kullanır, `libfuse2` gerektirmez
 
 Yan panelden yolu açık olan her adıma atlanabilir. Arayüz İngilizce açılır, seçtiğiniz dili hatırlar.
 
-Kısayollar: <kbd>Boşluk</kbd> oynat/duraklat · <kbd>←</kbd>/<kbd>→</kbd> önceki/sonraki nota · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 sn · <kbd>Home</kbd>/<kbd>End</kbd> başa/sona · <kbd>Ctrl</kbd>+<kbd>S</kbd> projeyi kaydet · <kbd>F11</kbd> tam ekran · <kbd>Esc</kbd> pencereyi kapat. Kaydedilmemiş değişiklikle kapatırken uygulama önce sorar (Kaydet / Kaydetme / İptal).
+Kısayollar: <kbd>Boşluk</kbd> oynat/duraklat · <kbd>←</kbd>/<kbd>→</kbd> önceki/sonraki nota · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 sn · <kbd>Home</kbd>/<kbd>End</kbd> başa/sona · <kbd>T</kbd> tempoya dokun · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> geri al / yinele · <kbd>Ctrl</kbd>+<kbd>S</kbd> projeyi kaydet · <kbd>F11</kbd> tam ekran · <kbd>Esc</kbd> pencereyi kapat. Kaydedilmemiş değişiklikle kapatırken uygulama önce sorar (Kaydet / Kaydetme / İptal).
 
 Projeler Windows'ta `%USERPROFILE%\.eqo-partitura\projects`, Linux'ta `~/.eqo-partitura/projects` klasöründe saklanır.
 

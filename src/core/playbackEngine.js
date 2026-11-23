@@ -169,6 +169,7 @@ export class PlaybackEngine {
   setSteps(steps) {
     this.steps = steps || [];
     this.items = (steps && steps.items) || [];
+    this.keys = (steps && steps.keys) || [];
     this._recalculateTimings();
     this.reset();
   }
@@ -281,10 +282,42 @@ export class PlaybackEngine {
     let sum = 0;
     for (const it of onsets) { sum += it.noteCount; this._noteCum.push(sum); }
     this.totalNotes = sum;
+    // keyboard view: each key held for its note, let go a moment early so a repeated note is seen again
+    this.timedKeys = (this.keys || []).map((k) => {
+      const startTime = this.beatToTime(k.beat);
+      const end = Math.min(acc, this.beatToTime(k.endBeat));
+      return { midi: k.midi, slot: k.slot, startTime, endTime: Math.max(startTime + 0.04, end - Math.min(0.05, (end - startTime) * 0.15)) };
+    }).sort((a, b) => a.startTime - b.startTime);
+    this.maxKeyDuration = this.timedKeys.reduce((m, k) => Math.max(m, k.endTime - k.startTime), 0);
+    let kLo = Infinity;
+    let kHi = -Infinity;
+    for (const k of this.timedKeys) { kLo = Math.min(kLo, k.midi); kHi = Math.max(kHi, k.midi); }
+    this.keyRange = Number.isFinite(kLo) ? { lo: kLo, hi: kHi } : null;
     this._activeKey = null; // force a refresh of the lit elements
 
     if (!this.isPlaying && before > 0) this.pausedMs = before * acc * 1000;
     if (this.onTick) this.onTick(this.getTime());
+  }
+
+  /** Keys down at time t: Map midi → staff slot (keyboard view). */
+  keysAt(t) {
+    const keys = this.timedKeys || [];
+    const out = new Map();
+    if (!keys.length || t < 0) return out;
+    let lo = 0;
+    let hi = keys.length;
+    const from = t - (this.maxKeyDuration || 0);
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (keys[mid].startTime < from) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let i = lo; i < keys.length; i++) {
+      const k = keys[i];
+      if (k.startTime > t) break;
+      if (t < k.endTime) out.set(k.midi, k.slot);
+    }
+    return out;
   }
 
   /** Note heads that have sounded by time t (chord notes each count). */

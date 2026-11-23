@@ -26,6 +26,9 @@
 - **Fermatas count.** Held notes are stretched ×2.0 by default (the same as MuseScore), and you can adjust this from ×1 to ×6.
 - **Tempo that follows the score.** The tempo written in the file (♩ = 90 and so on) is applied automatically, and tempo changes become *tempo diamonds*. You can add, edit or delete diamonds anywhere on the strip.
 - **Background studio.** Use an image or a looping video as the background, with scale, opacity, position and grayscale controls — or one of the ready-made patterns (hexagons, triangles, grid, dots, waves, lines, light, staves).
+- **Piano keyboard (optional).** A keyboard along the bottom of the video; the keys of the sounding notes are pressed in the glow colour of their staff.
+- **Look templates and quick output.** Save a look and reuse it; set YouTube 4K60, Shorts or Instagram output in one click.
+- **Tap tempo, undo and autosave.** Tap along with the recording to set the tempo; <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> for the settings; a saved project keeps saving itself.
 - **Live info in the video (optional).** Notes played so far, speed in notes per second and the tempo heard right now (rit. and accel. included), set in italic serif type in a corner you choose.
 - **See the finished video first.** The Preview page plays the whole video — intro and outro screens, background, effects and sound — drawn by the render's own code, before you render.
 - **Optional music track.** Add an MP3 / WAV / OGG / M4A / FLAC file and align it with a start offset (to the millisecond). Set the volume and optionally extend the video until the music ends. The track is muxed into the video, and the preview plays it in sync.
@@ -74,7 +77,7 @@ The AppImage uses the static AppImage runtime, so it does not need `libfuse2`. I
 
 The sidebar jumps to any step whose way is open. The interface starts in English and keeps the language you choose.
 
-Keyboard shortcuts: <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> previous/next note · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Home</kbd>/<kbd>End</kbd> start/end · <kbd>Ctrl</kbd>+<kbd>S</kbd> save project · <kbd>F11</kbd> full screen · <kbd>Esc</kbd> close dialog. Closing the window with unsaved changes asks first (Save / Don't save / Cancel).
+Keyboard shortcuts: <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> previous/next note · <kbd>Shift</kbd>+<kbd>←</kbd>/<kbd>→</kbd> ±5 s · <kbd>Home</kbd>/<kbd>End</kbd> start/end · <kbd>T</kbd> tap tempo · <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> undo / redo · <kbd>Ctrl</kbd>+<kbd>S</kbd> save project · <kbd>F11</kbd> full screen · <kbd>Esc</kbd> close dialog. Closing the window with unsaved changes asks first (Save / Don't save / Cancel).
 
 Projects are stored in `%USERPROFILE%\.eqo-partitura\projects` on Windows and `~/.eqo-partitura/projects` on Linux.
 

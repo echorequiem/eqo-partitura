@@ -3,6 +3,32 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-11-23
+
+### Added
+- **Piano keyboard (optional, page 3 · View):** a keyboard along the bottom of the video. The keys of the notes
+  sounding right now are pressed in the glow colour of their staff. Tied notes keep the key down, and a repeated
+  note is let go a moment early so it is seen again. The range is whole octaves around the piece (at least four,
+  never past 88 keys). The score moves up by half the keyboard's height, so the two never overlap. The same in
+  the preview, the page-4 preview and the video (it fades in and out with the score).
+- **Undo / redo** for the settings: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), up to 100 steps. It covers colours, theme, note size, tempo,
+  diamonds, fermatas, background placement, effects and live info.
+- **Autosave:** a project saved once is saved again quietly every two minutes while it has changes.
+- **Look templates (page 3 · Templates):** save the current look under a name and apply it to another piece.
+  A template holds colours, theme, note size, playhead, keyboard, effects, background placement and a
+  ready-made pattern, and live info.
+- **Quick output (page 5):** YouTube 4K60, YouTube HD, Shorts · Reels (9:16) and Instagram 4:5 each set size,
+  aspect, frame rate and MP4 in one click. The current choice is shown under the buttons.
+- **Tap tempo (page 3 · Timing):** tap along with the recording (button or <kbd>T</kbd>). "Set" makes the
+  result the start tempo at the beginning, or a tempo diamond at the playhead further on.
+- **Render progress on the taskbar** (yellow while paused), and a Windows notification when the video is ready
+  or the render fails while the window is in the background.
+
+### Changed
+- Short confirmations (undo, autosave, templates, tap tempo) appear as a small message at the bottom that goes
+  by itself, instead of a dialog.
+
 ## [1.0.1] - 2026-11-22
 
 ### Changed

@@ -287,6 +287,34 @@ class ItemCollector {
     this.pendingBeams = []; // { beam, els, slot }
     this.seenSpanEls = new Set();
     this.staves = (osmd.Sheet && osmd.Sheet.Staves) || [];
+    this.keys = []; // { beat, endBeat, midi, slot } — the keyboard view
+  }
+
+  /** MIDI number of a sounding note (null for rests / unpitched). */
+  midiOf(note) {
+    try {
+      if (isRestNote(note)) return null;
+      const ht = typeof note.halfTone === "number" ? note.halfTone : note.Pitch && note.Pitch.getHalfTone ? note.Pitch.getHalfTone() : null;
+      if (!Number.isFinite(ht)) return null;
+      const midi = Math.round(ht) + 12; // OSMD: halfTone 48 = middle C (MIDI 60)
+      return midi >= 0 && midi <= 127 ? midi : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  addKey(note, beat, len, slot) {
+    const midi = this.midiOf(note);
+    if (midi === null) return;
+    // a tied note keeps the key down: it lengthens the key of the note it is tied from
+    const tie = note.NoteTie;
+    if (tie && tie.StartNote && tie.StartNote !== note) {
+      for (let i = this.keys.length - 1; i >= 0; i--) {
+        const k = this.keys[i];
+        if (k.midi === midi && Math.abs(k.endBeat - beat) < 1e-6) { k.endBeat = beat + len; return; }
+      }
+    }
+    this.keys.push({ beat, endBeat: beat + len, midi, slot });
   }
 
   slotOf(note) {
@@ -304,6 +332,7 @@ class ItemCollector {
     const slot = this.slotOf(note);
     const info = { beat, len, slot, x: null };
     this.noteInfo.set(note, info);
+    this.addKey(note, beat, len, slot);
 
     for (const gNote of findGraphicalNotes(this.osmd, note, this.ctx)) {
       const group = gNote && typeof gNote.getSVGGElement === "function" ? gNote.getSVGGElement() : null;
@@ -563,6 +592,7 @@ export function buildTimeline(osmd, containerEl) {
     collector.resolveSpans();
     collector.resolveExpressions(svg, steps);
     steps.items = collector.items.sort((a, b) => a.startBeat - b.startBeat);
+    steps.keys = collector.keys.sort((a, b) => a.beat - b.beat);
   } else {
     // no timestamps (very unusual): fall back to "lit until the next note" per step
     steps.items = steps.map((s) => ({ startBeat: s.beat, endBeat: s.beat + s.beats, elements: s.elements, rects: s.rects, slot: 0 }));

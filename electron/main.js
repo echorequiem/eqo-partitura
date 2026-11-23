@@ -3,7 +3,7 @@
 // IPC handlers check the sender and every argument. Strict CSP on app://; new windows, external navigation,
 // <webview> and permission requests are blocked. Do not loosen any of this.
 
-import { app, BrowserWindow, Menu, net, protocol, session, shell } from "electron";
+import { app, BrowserWindow, Menu, Notification, net, protocol, session, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -345,6 +345,26 @@ if (!app.requestSingleInstanceLock()) {
         w._closeApproved = true;
         setImmediate(() => !w.isDestroyed() && w.close());
       }
+      return true;
+    });
+    // render progress on the taskbar button (-1 clears it; paused shows the bar yellow)
+    handle("app:progress", isAppUrl, (event, value, mode) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (!w || w.isDestroyed()) return false;
+      const v = Number(value);
+      if (!Number.isFinite(v) || v < 0) w.setProgressBar(-1);
+      else w.setProgressBar(Math.min(1, v), { mode: mode === "paused" ? "paused" : mode === "error" ? "error" : "normal" });
+      return true;
+    });
+    // a system notification when a long job ends while the window is in the background
+    handle("app:notify", isAppUrl, (event, title, body) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (typeof title !== "string" || typeof body !== "string") return false;
+      if (w && !w.isDestroyed()) w.flashFrame(!w.isFocused());
+      if ((w && w.isFocused()) || !Notification.isSupported()) return false;
+      const n = new Notification({ title: title.slice(0, 120), body: body.slice(0, 300), silent: false });
+      n.on("click", () => { if (w && !w.isDestroyed()) { if (w.isMinimized()) w.restore(); w.focus(); } });
+      n.show();
       return true;
     });
     createSplash(); // the splash starts the main window (startMain)

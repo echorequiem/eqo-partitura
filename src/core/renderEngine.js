@@ -8,6 +8,7 @@ import { pickAudioEncoder, AudioTrackEncoder, audioEndTime, renderAudioTracks, A
 import { PngStreamEncoder } from "./pngEncoder.js";
 import { drawCard, ensureCardFonts, cardPhaseAt, cardVideoOffset } from "./titleCards.js";
 import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont } from "./infoOverlay.js";
+import { drawKeyboard, keyboardHeight, keyboardRange } from "./keyboardOverlay.js";
 
 /** The card of a list that covers list-local time t. */
 const partAt = (list, t) => {
@@ -548,6 +549,10 @@ export class RenderEngine {
         ctx.globalAlpha = 1;
       }
     }
+    if (f.keyboard) {
+      const ka = clamp((t - 0.3) / 0.8, 0, 1);
+      if (ka > 0) drawKeyboard(ctx, W, H, null, f.keyboard.range, f.colors, ka * ka * (3 - 2 * ka));
+    }
     // soft entrance from black (screens end in black)
     const fade = clamp(1 - t / 0.45, 0, 1);
     if (fade > 0) {
@@ -630,6 +635,10 @@ export class RenderEngine {
         ctx.globalAlpha = 1;
       }
     }
+    if (f.keyboard) {
+      const ka = 1 - clamp(t / 0.8, 0, 1);
+      if (ka > 0) drawKeyboard(ctx, W, H, null, f.keyboard.range, f.colors, ka * ka * (3 - 2 * ka));
+    }
     // to black at the end (screens start from black)
     const fade = clamp((t - (D - 0.45)) / 0.45, 0, 1);
     if (fade > 0) {
@@ -680,9 +689,12 @@ export class RenderEngine {
       ctx.fillRect(Math.round(W / 2), 0, f.playheadW, H);
     }
     // live tempo / notes played in a corner (optional, page 3)
+    // piano keyboard along the bottom (optional, page 3)
+    const kbH = f.keyboard ? keyboardHeight(W, H) : 0;
+    if (f.keyboard) drawKeyboard(ctx, W, H, this.playbackEngine.keysAt(t), f.keyboard.range, f.colors);
     if (f.info) {
       const pb = this.playbackEngine;
-      drawInfoOverlay(ctx, W, H, f.info, infoValues(pb, t), f.infoLabels);
+      drawInfoOverlay(ctx, W, H - kbH, f.info, infoValues(pb, t), f.infoLabels);
     }
   }
 
@@ -1047,7 +1059,11 @@ export class RenderEngine {
       const f = {
         W, H, k, fps, canvas, ctx, tmp, tmpCtx, raster, bg, activeColor, realtime,
         colors: [activeColor, secondColor], // glow colour per staff slot (0 = first staff, 1 = others)
-        svgTop: Math.round(H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k),
+        svgTop: Math.round(H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k) -
+          (this.appState.keyboard ? Math.round(keyboardHeight(W, H) / 2) : 0),
+        keyboard: this.appState.keyboard
+          ? { range: keyboardRange(this.playbackEngine.keyRange && this.playbackEngine.keyRange.lo, this.playbackEngine.keyRange && this.playbackEngine.keyRange.hi) }
+          : null,
         // same rule as the preview (.has-bg-media): with background media the base is black in both themes
         bgColor: isDark || bg.media ? "#000000" : "#eaf3ec",
         accent: bodyStyle.getPropertyValue("--accent-yellow").trim() || "#cca700",

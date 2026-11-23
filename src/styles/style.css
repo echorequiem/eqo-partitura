@@ -895,3 +895,25 @@ label.row { cursor: pointer; }
 .tab-pane[data-pane="bg"] .toggle-row { min-width: 0; }
 /* the patterns are dark by design: their small frames a little brighter so they can be told apart */
 .bg-preset canvas { filter: brightness(1.9) saturate(1.15); }
+
+/* ===== 13. 1.1.0: output presets, look templates ===== */
+.out-presets { flex-wrap: wrap; gap: 6px; }
+.out-presets .pill-mini { padding: 0 10px; }
+.out-current { display: block; margin-top: 6px; font-size: var(--fs-xs); opacity: 0.7; }
+.tpl-hint { margin: 0 0 10px; font-size: var(--fs-xs); opacity: 0.75; }
+.template-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; margin-bottom: 12px; }
+.template-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+[data-theme="light"] .template-item { background: rgba(0, 0, 0, 0.04); }
+.template-item .tpl-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-item .tpl-swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.template-empty { font-size: var(--fs-xs); opacity: 0.6; padding: 6px 2px; }
+.template-new { display: flex; gap: 8px; }
+.template-new .d-input { flex: 1; min-width: 0; }
+.tap-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.tap-btn kbd { font-size: 10px; opacity: 0.7; padding: 0 4px; border: 1px solid currentColor; border-radius: 4px; }
+.tap-bpm { flex: 1; text-align: center; font-size: var(--fs-sm); }
+.tap-btn.tapped { transform: scale(0.96); }
+/* keyboard view: the score moves up by half the keyboard's height (same as the render) */
+.viewport.has-keyboard .score-track { top: calc(50% - var(--kb-shift, 0px)); }
+.app-toast { position: fixed; left: 50%; bottom: 84px; z-index: 10000; transform: translate(-50%, 8px); padding: 8px 16px; border-radius: 10px; font-size: var(--fs-sm); opacity: 0; pointer-events: none; transition: opacity 0.18s ease, transform 0.18s ease; }
+.app-toast.show { opacity: 1; transform: translate(-50%, 0); }

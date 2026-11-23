@@ -18,7 +18,11 @@ contextBridge.exposeInMainWorld("echo", {
       ipcRenderer.removeAllListeners("app:close-request");
       ipcRenderer.on("app:close-request", () => cb());
     },
-    closeNow: () => invoke("app:close-now")
+    closeNow: () => invoke("app:close-now"),
+    /** Taskbar progress 0..1 (negative clears); mode "normal" | "paused" | "error". */
+    progress: (value, mode) => invoke("app:progress", value, mode),
+    /** System notification (only shown when the window is not focused). */
+    notify: (title, body) => invoke("app:notify", title, body)
   },
   projects: {
     list: () => invoke("projects:list"),
