@@ -1062,7 +1062,7 @@ export class RenderEngine {
         svgTop: Math.round(H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k) -
           (this.appState.keyboard ? Math.round(keyboardHeight(W, H) / 2) : 0),
         keyboard: this.appState.keyboard
-          ? { range: keyboardRange(this.playbackEngine.keyRange && this.playbackEngine.keyRange.lo, this.playbackEngine.keyRange && this.playbackEngine.keyRange.hi) }
+          ? { range: keyboardRange(this.playbackEngine.keyRange && this.playbackEngine.keyRange.lo, this.playbackEngine.keyRange && this.playbackEngine.keyRange.hi, W / H) }
           : null,
         // same rule as the preview (.has-bg-media): with background media the base is black in both themes
         bgColor: isDark || bg.media ? "#000000" : "#eaf3ec",

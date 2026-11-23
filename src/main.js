@@ -2562,7 +2562,7 @@ function drawInfoPreview(t) {
   if (appState.keyboard) {
     const r = engine.keyRange;
     const colors = [appState.activeColor, appState.dualColor ? appState.activeColor2 || appState.activeColor : appState.activeColor];
-    drawKeyboard(ctx, cw, ch, t >= 0 ? engine.keysAt(t) : null, keyboardRange(r && r.lo, r && r.hi), colors);
+    drawKeyboard(ctx, cw, ch, t >= 0 ? engine.keysAt(t) : null, keyboardRange(r && r.lo, r && r.hi, cw / ch), colors);
     kbH = keyboardHeight(cw, ch);
   }
   if (!infoActive(appState.info)) return;

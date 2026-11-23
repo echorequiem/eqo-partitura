@@ -16,9 +16,12 @@ export function keyboardHeight(W, H) {
 
 /**
  * Key range shown: whole octaves C…B around the notes of the piece, at least four octaves, never past the
- * 88 keys of a piano. @param lo/hi lowest and highest MIDI note of the piece (or null)
+ * 88 keys of a piano. A wide frame (16:9 or wider) always shows the whole piano, A0…C8.
+ * @param lo/hi lowest and highest MIDI note of the piece (or null)
+ * @param aspect frame width / height
  */
-export function keyboardRange(lo, hi) {
+export function keyboardRange(lo, hi, aspect = 0) {
+  if (aspect >= 16 / 9 - 0.01) return { lo: A0, hi: C8 };
   if (!(lo > 0) || !(hi > 0)) return { lo: 36, hi: 95 }; // C2…B6
   let a = Math.floor(Math.max(A0, lo) / 12) * 12;
   let b = Math.ceil((Math.min(C8, hi) + 1) / 12) * 12 - 1;

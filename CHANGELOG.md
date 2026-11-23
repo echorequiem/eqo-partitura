@@ -8,7 +8,8 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - **Piano keyboard (optional, page 3 · View):** a keyboard along the bottom of the video. The keys of the notes
   sounding right now are pressed in the glow colour of their staff. Tied notes keep the key down, and a repeated
-  note is let go a moment early so it is seen again. The range is whole octaves around the piece (at least four,
+  note is let go a moment early so it is seen again. A 16:9 video always shows the whole piano (88 keys); narrower
+  formats show whole octaves around the piece (at least four,
   never past 88 keys); every C is marked with its octave (C4 = middle C). The score moves up by half the keyboard's height, so the two never overlap. The same in
   the preview, the page-4 preview and the video (it fades in and out with the score).
 - **Undo / redo** for the settings: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or
