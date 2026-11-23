@@ -5,6 +5,9 @@
 // middle of its two white keys, so the keyboard is even and sharp at any size. Drawn by the same function in
 // the page-3 preview (the overlay canvas over the stage) and in the render, so both look alike. The score moves
 // up by half the keyboard's height so the two never overlap.
+// Speed: the keys are painted once into cached strips (all up; all white keys down; all black keys down, per
+// staff colour) and each frame only copies the pressed keys' columns over the resting keyboard — a few image
+// copies instead of hundreds of gradient fills, so the keyboard costs the render almost nothing.
 
 const WHITE_STEPS = [0, 2, 4, 5, 7, 9, 11]; // pitch classes of the white keys
 const isBlack = (midi) => !WHITE_STEPS.includes(((midi % 12) + 12) % 12);
@@ -45,40 +48,34 @@ const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const WHITE = [255, 255, 255];
 const BLACK = [0, 0, 0];
 
-/**
- * @param active  Map midi → staff slot (0 / 1) of the keys sounding now
- * @param range   { lo, hi } from keyboardRange
- * @param colors  [first staff, second staff] glow colours (#rrggbb)
- * @param alpha   fades the whole keyboard (video lead-in / lead-out)
- */
-export function drawKeyboard(ctx, W, H, active, range, colors, alpha = 1) {
-  const kh = keyboardHeight(W, H);
-  if (kh < 8) return;
+/** Geometry of the keys for a strip W wide and kh high (all whole pixels). */
+function layout(W, kh, range) {
   const whites = [];
   for (let m = range.lo; m <= range.hi; m++) if (!isBlack(m)) whites.push(m);
-  if (!whites.length) return;
   const n = whites.length;
-
   // whole pixels: key i spans [edge(i), edge(i + 1)); the band is centred if W does not divide evenly
-  const ww = Math.floor(W / n);
+  const ww = n ? Math.floor(W / n) : 0;
   const x0 = Math.floor((W - ww * n) / 2);
-  const edge = (i) => x0 + i * ww;
   const rim = Math.max(2, Math.round(kh * 0.04)); // the dark felt strip above the keys
-  const top = Math.round(H - kh);
-  const keyTop = top + rim;
-  const keyH = H - keyTop;
+  const keyTop = rim;
+  const keyH = kh - keyTop;
   const front = Math.max(2, Math.round(keyH * 0.07)); // the white keys' front face
   const bw = Math.max(2, 2 * Math.round(ww * 0.29)); // even: the black key sits exactly on the joint
   const bh = Math.round(keyH * 0.62);
   const bFront = Math.max(2, Math.round(bh * 0.1));
+  return { whites, n, ww, x0, edge: (i) => x0 + i * ww, rim, keyTop, keyH, front, bw, bh, bFront };
+}
+
+/** Paints the whole keyboard into ctx (a strip W × kh); pressedSlot(m) gives the staff slot of a pressed key. */
+function paintKeys(ctx, W, kh, range, colors, pressedSlot) {
+  const top = 0;
+  const H = kh;
+  const { whites, n, ww, edge, rim, keyTop, keyH, front, bw, bh, bFront } = layout(W, kh, range);
   const cols = (colors || []).map(hexToRgb);
   const colorOf = (slot) => cols[slot === 1 ? 1 : 0] || cols[0] || [255, 0, 0];
+  const active = { has: (m) => pressedSlot(m) !== undefined, get: (m) => pressedSlot(m) };
 
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-  ctx.filter = "none";
-  ctx.shadowColor = "transparent";
   ctx.imageSmoothingEnabled = true;
 
   // the case behind the keys and the felt strip
@@ -180,5 +177,80 @@ export function drawKeyboard(ctx, W, H, active, range, colors, alpha = 1) {
     ctx.fillStyle = fg;
     ctx.fillRect(x + inset, keyTop, bw - inset * 2, faceH);
   }
+  ctx.restore();
+}
+
+function makeStrip(W, h) {
+  if (typeof OffscreenCanvas === "function") return new OffscreenCanvas(W, h);
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = h;
+  return c;
+}
+
+// cached strips per size / range / colours (a few: preview and render can differ)
+const cache = new Map();
+function stripsFor(W, kh, range, colors) {
+  const fonts = typeof document !== "undefined" && document.fonts ? document.fonts.status : "";
+  const key = [W, kh, range.lo, range.hi, (colors || []).join(","), fonts].join("|");
+  let e = cache.get(key);
+  if (e) return e;
+  const paint = (fn) => {
+    const c = makeStrip(W, kh);
+    paintKeys(c.getContext("2d"), W, kh, range, colors, fn);
+    return c;
+  };
+  e = {
+    geo: layout(W, kh, range),
+    base: paint(() => undefined),
+    whites: [0, 1].map((slot) => paint((m) => (isBlack(m) ? undefined : slot))),
+    blacks: [0, 1].map((slot) => paint((m) => (isBlack(m) ? slot : undefined))),
+    frame: makeStrip(W, kh)
+  };
+  if (cache.size >= 4) cache.delete(cache.keys().next().value);
+  cache.set(key, e);
+  return e;
+}
+
+/**
+ * @param active  Map midi → staff slot (0 / 1) of the keys sounding now
+ * @param range   { lo, hi } from keyboardRange
+ * @param colors  [first staff, second staff] glow colours (#rrggbb)
+ * @param alpha   fades the whole keyboard (video lead-in / lead-out)
+ */
+export function drawKeyboard(ctx, W, H, active, range, colors, alpha = 1) {
+  const kh = keyboardHeight(W, H);
+  if (kh < 8 || !range) return;
+  const e = stripsFor(W, kh, range, colors);
+  const { whites, n, ww, edge, keyTop, bw, bh, bFront } = e.geo;
+  if (!n) return;
+  let src = e.base;
+  if (active && active.size) {
+    // the resting keyboard, then the pressed white keys' columns, then the pressed black keys
+    const fc = e.frame.getContext("2d");
+    fc.globalCompositeOperation = "copy";
+    fc.drawImage(e.base, 0, 0);
+    fc.globalCompositeOperation = "source-over";
+    whites.forEach((m, i) => {
+      if (!active.has(m)) return;
+      fc.drawImage(e.whites[active.get(m) === 1 ? 1 : 0], edge(i), 0, ww, kh, edge(i), 0, ww, kh);
+    });
+    const press = Math.max(1, Math.round(bFront * 0.5));
+    for (const [m, slot] of active) {
+      if (!isBlack(m)) continue;
+      const li = whites.indexOf(m - 1);
+      if (li < 0 || li + 1 >= n) continue;
+      const x = edge(li + 1) - bw / 2;
+      fc.drawImage(e.blacks[slot === 1 ? 1 : 0], x, keyTop, bw, bh + press, x, keyTop, bw, bh + press);
+    }
+    src = e.frame;
+  }
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.filter = "none";
+  ctx.shadowColor = "transparent";
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, 0, Math.round(H - kh));
   ctx.restore();
 }

@@ -35,6 +35,8 @@ All notable changes to this project are documented here. The format follows
   the type turns dark with a light shadow. The video measures the corner twice a second.
 - **Keyboard drawn in depth:** front faces, bevelled black keys and their shadows; every edge on a whole pixel,
   all white keys equally wide and every black key centred on its joint, so it is even and sharp at any size.
+  The keys are painted once and each frame only copies the pressed ones, so the keyboard barely slows the render
+  (720p24 test: 143 s → 99 s; 93 s without the keyboard).
 - Short confirmations (undo, autosave, templates, tap tempo) appear as a small message at the bottom that goes
   by itself, instead of a dialog.
 
