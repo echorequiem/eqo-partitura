@@ -29,6 +29,8 @@ All notable changes to this project are documented here. The format follows
   are cut into equal arcs that turn in opposite directions ring by ring (symmetric through the centre) and fill
   with the accent from the centre as the video progresses; when it is done they close into full rings, a ripple
   runs outwards and a check mark appears.
+- **Speed changes once a measure:** the live speed is the average of the measure playing (note heads / the
+  measure's length), so it can be read; before, it was measured over the last two seconds and kept changing.
 - **Live info reads on light pictures:** on a light background (the light score theme, a beige or white picture)
   the type turns dark with a light shadow. The video measures the corner twice a second.
 - **Keyboard drawn in depth:** front faces, bevelled black keys and their shadows; every edge on a whole pixel,

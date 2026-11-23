@@ -598,6 +598,14 @@ export function buildTimeline(osmd, containerEl) {
     steps.items = steps.map((s) => ({ startBeat: s.beat, endBeat: s.beat + s.beats, elements: s.elements, rects: s.rects, slot: 0 }));
   }
   steps.hasSecondStaff = steps.items.some((i) => i.slot === 1);
+  // where each measure starts (beats), for the per-measure speed of the live info
+  const mBeats = [];
+  for (const m of (osmd.Sheet && osmd.Sheet.SourceMeasures) || []) {
+    const ts = m && m.AbsoluteTimestamp;
+    const b = ts && typeof ts.RealValue === "number" ? ts.RealValue * 4 : NaN;
+    if (Number.isFinite(b) && (!mBeats.length || b > mBeats[mBeats.length - 1] + 1e-6)) mBeats.push(b);
+  }
+  steps.measures = mBeats;
   for (const s of steps) { delete s._left; delete s._right; }
   return steps;
 }

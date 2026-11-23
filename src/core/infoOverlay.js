@@ -1,6 +1,6 @@
 // infoOverlay.js — optional live values in a corner of the video, set in type rather than in boxes:
 //   Notes: 524          (note heads sounded so far — the large line)
-//   Speed: 5 n/s        (note heads per second, over the last two seconds)
+//   Speed: 5 n/s        (note heads per second: the average of the measure playing, so it changes once a measure)
 //   Tempo: ♩ 82         (the tempo heard right now, rit. / accel. included)
 // Italic Cormorant (the title-card serif, bundled), soft white with a dark shadow so it reads on any
 // background — no box, no glow. Drawn by the same function in the page-3 preview (a canvas over the stage)
@@ -58,8 +58,11 @@ export function ensureInfoFont() {
 export function infoValues(pb, t) {
   const time = Math.max(0, Math.min(t, pb.totalDuration || 0));
   const played = pb.notesPlayedAt(time);
-  const w = Math.max(0.5, Math.min(SPEED_WINDOW, time));
-  const speed = (played - pb.notesPlayedAt(time - w)) / w;
+  let speed = pb.measureSpeedAt ? pb.measureSpeedAt(time) : null;
+  if (speed === null) { // no measures known: the last two seconds
+    const w = Math.max(0.5, Math.min(SPEED_WINDOW, time));
+    speed = (played - pb.notesPlayedAt(time - w)) / w;
+  }
   return { played, total: pb.totalNotes || 0, speed, bpm: pb.tempoAt(time) };
 }
 

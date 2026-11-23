@@ -170,6 +170,7 @@ export class PlaybackEngine {
     this.steps = steps || [];
     this.items = (steps && steps.items) || [];
     this.keys = (steps && steps.keys) || [];
+    this.measures = (steps && steps.measures) || [];
     this._recalculateTimings();
     this.reset();
   }
@@ -282,6 +283,13 @@ export class PlaybackEngine {
     let sum = 0;
     for (const it of onsets) { sum += it.noteCount; this._noteCum.push(sum); }
     this.totalNotes = sum;
+    // per-measure speed: note heads that start in a measure / the measure's length in seconds
+    const mStarts = (this.measures || []).map((b) => this.beatToTime(b));
+    this._measureSpeed = mStarts.map((s, i) => {
+      const e = i + 1 < mStarts.length ? mStarts[i + 1] : acc;
+      if (!(e > s)) return { start: s, end: e, speed: 0 };
+      return { start: s, end: e, speed: (this.notesPlayedAt(e - 1e-6) - this.notesPlayedAt(s - 1e-6)) / (e - s) };
+    });
     // keyboard view: each key held for its note, let go a moment early so a repeated note is seen again
     this.timedKeys = (this.keys || []).map((k) => {
       const startTime = this.beatToTime(k.beat);
@@ -297,6 +305,20 @@ export class PlaybackEngine {
 
     if (!this.isPlaying && before > 0) this.pausedMs = before * acc * 1000;
     if (this.onTick) this.onTick(this.getTime());
+  }
+
+  /** Average speed (note heads per second) of the measure playing at time t; null without measure data. */
+  measureSpeedAt(t) {
+    const ms = this._measureSpeed;
+    if (!ms || !ms.length) return null;
+    let lo = 0;
+    let hi = ms.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (ms[mid].start <= t + 1e-6) lo = mid;
+      else hi = mid - 1;
+    }
+    return ms[lo].speed;
   }
 
   /** Keys down at time t: Map midi → staff slot (keyboard view). */
