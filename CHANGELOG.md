@@ -27,8 +27,8 @@ All notable changes to this project are documented here. The format follows
 ### Changed
 - **New render animation, in three states:** before the render the rings breathe calmly; while rendering they
   are cut into equal arcs that turn in opposite directions ring by ring (symmetric through the centre) and fill
-  with the accent from the centre as the video progresses; when it is done they close into full rings, a ripple
-  runs outwards and a check mark appears.
+  with the accent from the centre as the video progresses; when it is done they slow down, close into full rings
+  and draw together into a small emblem of five rings while one pulse of the accent runs outwards (about 1 s).
 - **Speed changes once a measure:** the live speed is the average of the measure playing (note heads / the
   measure's length), so it can be read; before, it was measured over the last two seconds and kept changing.
 - **Live info reads on light pictures:** on a light background (the light score theme, a beige or white picture)

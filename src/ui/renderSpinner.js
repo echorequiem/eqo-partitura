@@ -2,14 +2,16 @@
 //   idle     before a render: concentric rings that breathe slowly, a soft wave going out from the centre
 //   running  rendering: every ring is cut into equal arcs; neighbouring rings turn in opposite directions, so
 //            the figure stays a balanced mandala; the progress fills the rings with the accent from the centre
-//   done     finished: the arcs close into full rings, a ripple runs outwards, a check mark draws in the middle
+//   done     finished: the turning arcs slow down and close into full rings while the figure draws together —
+//            every other ring fades and the rest gather tightly round the centre — one pulse of the accent runs
+//            outwards, and it rests as a small, still emblem of five rings (about 1 s, nothing drawn in the middle)
 // Flat lines only — no glow (Echo Masterworks rule: no neon). It follows the card's "rendering" class (main.js
 // sets it, also removes it while paused) and reads the percentage from the readout; main.js calls done() on
 // success.
 
 const RINGS = 9;
 const TAU = Math.PI * 2;
-const DONE_SECONDS = 1.4;
+const DONE_SECONDS = 1.0;
 
 export function createRenderSpinner({ canvas, area, pctEl }) {
   const ctx = canvas.getContext("2d");
@@ -18,6 +20,7 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
   let tState = 0; // seconds in the current state (kept while paused)
   let tLast = 0;
   let size = 0;
+  let runT = 0; // how far the rings had turned when the render finished (done continues from that pose)
 
   const css = (name, fallback) => getComputedStyle(canvas).getPropertyValue(name).trim() || fallback;
 
@@ -55,7 +58,7 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
 
     for (let i = 0; i < RINGS; i++) {
       const k = i / (RINGS - 1);
-      const r = R * (0.16 + 0.84 * k);
+      let r = R * (0.16 + 0.84 * k);
       const segs = 2 + Math.floor(i / 2) * 2; // 2, 2, 4, 4, 6, … equal arcs: symmetric through the centre
       const dir = i % 2 ? -1 : 1;
       let gapFrac; // share of each segment left empty
@@ -69,12 +72,22 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
         const wave = 0.5 + 0.5 * Math.sin(t * 1.4 - k * 3.2);
         alpha = 0.16 + 0.22 * wave;
       } else if (state === "done") {
-        // arcs close into rings, then a ripple of accent runs outwards and settles
-        const close = ease(clamp01(t / 0.5));
-        gapFrac = 0.28 * (1 - close);
-        const ripple = Math.exp(-Math.pow((t - 0.45 - k * 0.55) * 5, 2));
+        // the turning slows to a stop (same speed at the start: no jump) while the arcs close into rings
+        const x = clamp01(t / 0.5);
+        const speed = 0.35 + 0.5 * (1 - k);
+        rot = dir * speed * (runT + 0.25 * (1 - (1 - x) * (1 - x)));
+        gapFrac = 0.28 * (1 - ease(x));
+        // draw together: odd rings fade out, the even ones move in to 22 … 60 % of the radius
+        const g = ease(clamp01((t - 0.1) / 0.5));
+        const j = Math.floor(i / 2); // 0 … 4 for the rings that stay
+        const rEnd = R * (0.22 + 0.38 * (j / 4));
+        r = i % 2 ? r * (1 - 0.35 * g) : r + (rEnd - r) * g;
+        const keep = i % 2 ? 1 - g : 1;
+        // one pulse of the accent from the centre outwards, then the rings rest a little lighter outwards
+        const pulse = Math.exp(-Math.pow((t - 0.45 - k * 0.35) * 6, 2));
         color = accent;
-        alpha = 0.55 + 0.45 * ripple;
+        alpha = keep * Math.min(1, 1 - 0.3 * (j / 4) * g + 0.35 * pulse);
+        if (alpha <= 0.01) continue;
       } else {
         gapFrac = 0.28;
         const speed = 0.35 + 0.5 * (1 - k); // inner rings turn faster
@@ -103,30 +116,6 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
       }
     }
 
-    // done: a check mark drawn in the middle
-    if (state === "done") {
-      const d = ease(clamp01((t - 0.55) / 0.5));
-      if (d > 0) {
-        const s = R * 0.22;
-        const pts = [[c - s * 0.55, c + s * 0.02], [c - s * 0.12, c + s * 0.45], [c + s * 0.62, c - s * 0.4]];
-        const l1 = Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]);
-        const l2 = Math.hypot(pts[2][0] - pts[1][0], pts[2][1] - pts[1][1]);
-        let rest = d * (l1 + l2);
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = ink;
-        ctx.lineWidth = line * 1.5;
-        ctx.beginPath();
-        ctx.moveTo(pts[0][0], pts[0][1]);
-        const f1 = Math.min(1, rest / l1);
-        ctx.lineTo(pts[0][0] + (pts[1][0] - pts[0][0]) * f1, pts[0][1] + (pts[1][1] - pts[0][1]) * f1);
-        rest -= l1;
-        if (rest > 0) {
-          const f2 = rest / l2;
-          ctx.lineTo(pts[1][0] + (pts[2][0] - pts[1][0]) * f2, pts[1][1] + (pts[2][1] - pts[1][1]) * f2);
-        }
-        ctx.stroke();
-      }
-    }
     ctx.globalAlpha = 1;
   }
 
@@ -142,6 +131,7 @@ export function createRenderSpinner({ canvas, area, pctEl }) {
 
   function setState(next) {
     if (next === state && raf) return;
+    if (next === "done") runT = state === "running" || state === "paused" ? tState : 0;
     if (next !== "paused" && !(state === "paused" && next === "running")) tState = 0;
     state = next;
     tLast = 0;
