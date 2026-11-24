@@ -1905,6 +1905,24 @@ function scoreContentBox(svg) {
   return { top: 0, height: r.height };
 }
 
+// The notes are drawn smaller than the chosen size while the score is too tall for the room the keyboard and the
+// live info leave. The slider keeps the chosen size, so it comes back when there is room again.
+const MIN_FIT_ZOOM = 20; // percent
+let zoomLimit = Infinity; // largest note size (percent) that fits now
+const fittedZoom = () => Math.min(Number(zoomRange.value), zoomLimit);
+function showZoomValue() {
+  const chosen = Number(zoomRange.value);
+  zoomVal.textContent = zoomLimit < chosen ? `${chosen} → ${zoomLimit}` : String(chosen);
+}
+function queueFit() {
+  if (!scoreManager || !appState.isScoreLoaded || appState.rendering || currentPage !== 3 || zoomBusy || zoomSession) return;
+  const diff = fittedZoom() - Math.round(scoreManager.currentZoom * 100);
+  // one step of slack upwards, so rounding cannot make it swing between two sizes
+  if (diff === 0 || (diff === 1 && zoomLimit < Number(zoomRange.value))) return;
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(applyZoom, 150);
+}
+
 // the score moves only as far as needed to clear the keyboard and the live info (same rule as the render)
 function syncKeyboardShift() {
   const W = viewportEl.clientWidth;
@@ -1912,6 +1930,7 @@ function syncKeyboardShift() {
   const kb = appState.keyboard ? keyboardHeight(W, H) : 0;
   const room = infoActive(appState.info) ? infoReserve(W, H - kb, appState.info) : { top: 0, bottom: 0 };
   let shift = 0;
+  let limit = H > 0 ? Infinity : zoomLimit; // a hidden page measures 0: keep the last value
   const svg = osmdContainer.querySelector("svg");
   const cH = osmdContainer.offsetHeight;
   if (H > 0 && svg && cH && (kb > 0 || room.top > 0 || room.bottom > 0)) {
@@ -1922,9 +1941,16 @@ function syncKeyboardShift() {
       const box = scoreContentBox(svg);
       const top = H / 2 - cH / 2 + (s.top - c.top + box.top) * f;
       shift = scoreShift(H, room.top, kb + room.bottom, top, top + box.height * f);
+      const free = H - room.top - kb - room.bottom;
+      if (scoreManager && box.height > 0 && free > 0) {
+        limit = Math.max(MIN_FIT_ZOOM, Math.floor((scoreManager.currentZoom * 100 * free) / (box.height * f)));
+      }
     }
   }
   viewportEl.style.setProperty("--score-shift", `${shift}px`);
+  zoomLimit = limit;
+  showZoomValue();
+  queueFit();
 }
 keyboardToggle.addEventListener("change", (e) => setKeyboard(e.target.checked));
 
@@ -1954,7 +1980,7 @@ function beginZoomSession() {
 
 function previewZoom(percent) {
   const s = beginZoomSession();
-  const ratio = percent / 100 / s.fromZoom;
+  const ratio = Math.min(percent, zoomLimit) / 100 / s.fromZoom;
   // scale around the note under the playhead so it stays in place
   const centerX = viewportEl.clientWidth / 2 - Number(trackEl.dataset.currentX || 0);
   osmdContainer.style.transformOrigin = `${centerX}px 50%`;
@@ -1963,12 +1989,14 @@ function previewZoom(percent) {
 }
 
 async function applyZoom() {
+  clearTimeout(zoomTimer);
+  if (appState.rendering) return;
   if (zoomBusy) {
     zoomTimer = setTimeout(applyZoom, 120);
     return;
   }
   const session = beginZoomSession();
-  const target = Number(zoomRange.value);
+  const target = fittedZoom();
   if (!scoreManager || !appState.isScoreLoaded || Math.abs(target / 100 - scoreManager.currentZoom) < 1e-6) {
     endZoomSession();
     return;
@@ -1988,6 +2016,7 @@ async function applyZoom() {
     zoomBusy = false;
     setScoreLoading(false);
     endZoomSession(session);
+    if (Math.round(scoreManager.currentZoom * 100) === target) queueFit(); // changed meanwhile
   }
 }
 
@@ -2004,12 +2033,12 @@ function endZoomSession(session = zoomSession) {
 }
 
 zoomRange.addEventListener("input", (e) => {
-  zoomVal.textContent = e.target.value;
+  showZoomValue();
   if (!appState.isScoreLoaded || zoomBusy) return;
   previewZoom(Number(e.target.value));
 });
 zoomRange.addEventListener("change", () => {
-  zoomVal.textContent = zoomRange.value;
+  showZoomValue();
   if (!appState.isScoreLoaded) return;
   clearTimeout(zoomTimer);
   zoomTimer = setTimeout(applyZoom, 60); // released (or keyboard step): real re-layout once
@@ -2211,10 +2240,13 @@ stripFmtBtns.forEach((btn) => {
   });
 });
 
-toPage4Btn.addEventListener("click", () => {
+toPage4Btn.addEventListener("click", async () => {
   if (!appState.isScoreLoaded) return;
   engine.stop();
   playBtn.textContent = tr("play");
+  while (zoomBusy) await nextFrame(); // a note size change still under way
+  await applyZoom(); // or still waiting
+  if (currentPage !== 3) return;
   measureLayout(); // CRITICAL: page 3 is still visible — measure now
   refreshSummary();
   setStatusKey("readyToRender");
@@ -2682,7 +2714,7 @@ function applySettings(s, { keepCards = false } = {}) {
   updateColorVars();
   if (s.format === "mp4" || s.format === "webm") setFormat(s.format);
   if (s.animTheme === "dark" || s.animTheme === "light") setAnimTheme(s.animTheme);
-  if (s.zoom) { zoomRange.value = s.zoom; zoomVal.textContent = String(s.zoom); }
+  if (s.zoom) { zoomRange.value = s.zoom; showZoomValue(); }
   if (s.bpm) bpmInput.value = s.bpm;
   setFermataStretch(s.fermataStretch ?? DEFAULT_FERMATA_STRETCH);
   setPlayhead(s.showPlayhead !== false);

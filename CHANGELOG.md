@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows
   sounding right now are pressed in the glow colour of their staff. Tied notes keep the key down, and a repeated
   note is let go a moment early so it is seen again. A 16:9 video always shows the whole piano (88 keys); narrower
   formats show whole octaves around the piece (at least four,
-  never past 88 keys); every C is marked with its octave (C4 = middle C). The score stays centred and moves only as far as it must to clear the keyboard and the live info in its corner (a score taller than the free room is centred in it; a smaller note size then helps). The same in
+  never past 88 keys); every C is marked with its octave (C4 = middle C). The score stays centred and moves only as far as it must to clear the keyboard and the live info in its corner (while a score is taller than the free room, its notes are drawn smaller so it fits; the chosen note size is kept and comes back when there is room). The same in
   the preview, the page-4 preview and the video (it fades in and out with the score).
 - **Undo / redo** for the settings: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or
   <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), up to 100 steps. It covers colours, theme, note size, tempo,
