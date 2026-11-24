@@ -11,7 +11,18 @@ contextBridge.exposeInMainWorld("echo", {
   app: {
     info: () => invoke("app:info"),
     /** The UI has drawn its first complete frame: the main process may show the window. */
-    ready: () => invoke("app:ready")
+    ready: () => invoke("app:ready"),
+    /** cb() runs when the user closes the window; the page then calls closeNow() (or keeps the app open). */
+    onCloseRequest: (cb) => {
+      if (typeof cb !== "function") return;
+      ipcRenderer.removeAllListeners("app:close-request");
+      ipcRenderer.on("app:close-request", () => cb());
+    },
+    closeNow: () => invoke("app:close-now"),
+    /** Taskbar progress 0..1 (negative clears); mode "normal" | "paused" | "error". */
+    progress: (value, mode) => invoke("app:progress", value, mode),
+    /** System notification (only shown when the window is not focused). */
+    notify: (title, body) => invoke("app:notify", title, body)
   },
   projects: {
     list: () => invoke("projects:list"),

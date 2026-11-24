@@ -1,5 +1,6 @@
 import * as OSMDModule from "opensheetmusicdisplay";
 import { SCORE_FONT, ensureScoreFont } from "./scoreFont.js";
+import { readMusicXmlText, parseTempoWords } from "./tempoWords.js";
 
 const OpenSheetMusicDisplay =
   OSMDModule.OpenSheetMusicDisplay ||
@@ -125,9 +126,16 @@ export class ScoreManager {
       this._applyRules();
       await this.osmd.render();
       this._fixSvgSize();
+      // rit. / rall. / accel. / a tempo: read from the XML itself (OSMD does not time them)
+      this.tempoWords = { ramps: [], resets: [] };
+      try {
+        this.tempoWords = parseTempoWords(await readMusicXmlText(file));
+      } catch (err) {
+        console.warn("[tempo words] not read:", err && err.message);
+      }
       return this.osmd;
     } catch (error) {
-      console.error("OSMD yükleme hatası:", error);
+      console.error("OSMD load error:", error);
       const err = new Error(error && error.message ? error.message : String(error));
       if (isMxl) err.code = "MXL_FAILED";
       throw err;
@@ -138,6 +146,19 @@ export class ScoreManager {
   getScoreTempo() {
     const sheet = this.osmd && this.osmd.Sheet;
     if (!sheet) return null;
+    // preferred: the tempos read from the XML (core/tempoWords.js) — right choice when several marks share a
+    // spot, and changes in the middle of a measure too
+    const tw = this.tempoWords && this.tempoWords.tempos;
+    if (tw && tw.length) {
+      const startBpm = tw[0].beat <= 1e-6 ? tw[0].bpm : Number(sheet.DefaultStartTempoInBpm) || tw[0].bpm;
+      const changes = [];
+      let prev = startBpm;
+      for (const t of tw) {
+        if (t.beat <= 1e-6) continue;
+        if (Math.abs(t.bpm - prev) > 0.01) { changes.push({ beat: t.beat, bpm: t.bpm }); prev = t.bpm; }
+      }
+      return { hasInfo: true, startBpm, changes };
+    }
     const startBpm = Number(sheet.DefaultStartTempoInBpm) || 0;
     const changes = [];
     let prev = startBpm;

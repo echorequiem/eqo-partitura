@@ -11,23 +11,22 @@
 
    data-family : requiem | studio | song | game | apps | soft
    data-theme  : dark (varsayılan) | light
-   Yazı tipi    : Diapason (bizim yerel fontumuz) → fontlar/ klasörü bu dosyanın yanında durmalı.
+   Yazı tipi    : Montserrat (yerel kopya) → fontlar/ klasörü bu dosyanın yanında durmalı.
+   Kural        : NEON YOK. Işıma, bulanık hale, parlayan çizgi kullanılmaz (2026-11-22).
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   0. YAZI TİPİ: DIAPASON (yerel, internet gerektirmez)
-   Times New Roman tarzı klasik serif (temel: Tinos, SIL Open Font License 1.1).
-   Stiller: Normal · Kalın · İtalik · Kalın İtalik
+   0. YAZI TİPİ: MONTSERRAT (yerel, internet gerektirmez)
+   Geometrik sans-serif. Kaynak: Google Fonts · SIL Open Font License 1.1.
+   Tek dosyada 100–900 arası her kalınlık (değişken yazı tipi) + italik.
    -------------------------------------------------------------------------- */
-@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-Regular.woff2") format("woff2"); font-weight: 100 500; font-style: normal; font-display: swap; }
-@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-Bold.woff2") format("woff2"); font-weight: 600 900; font-style: normal; font-display: swap; }
-@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-Italic.woff2") format("woff2"); font-weight: 100 500; font-style: italic; font-display: swap; }
-@font-face { font-family: "Diapason"; src: url("fontlar/Diapason-BoldItalic.woff2") format("woff2"); font-weight: 600 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Montserrat"; src: url("fontlar/Montserrat.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Montserrat"; src: url("fontlar/Montserrat-Italic.woff2") format("woff2"); font-weight: 100 900; font-style: italic; font-display: swap; }
 
 /* --------------------------------------------------------------------------
    1. AİLE RENKLERİ  (renkler/palet.css ile birebir aynı)
    Kural: aile rengi yalnızca VURGU içindir (butonlar, seçili durum, odak,
-   ilerleme, küçük ışıltılar). Yazılar ve yüzeyler her zaman nötrdür.
+   ilerleme, küçük vurgular; ışıma/neon yok). Yazılar ve yüzeyler her zaman nötrdür.
    -------------------------------------------------------------------------- */
 :root,
 [data-family="requiem"] { --ana: #48FCFC; --isik: #D7FEFE; --isima: #38C5C5; --derin: #0C1E20; --on-ana: #04191A; }
@@ -42,9 +41,9 @@
    -------------------------------------------------------------------------- */
 :root {
   /* yazı */
-  /* Diapason: tüm Latin alfabeli diller + Yunanca + Kiril. Kapsamadığı nadir karakterler
-     (Arapça, Ermenice, tarihî harfler, ₿ ...) sıradaki yedek fontlardan otomatik gelir. */
-  --font: "Diapason", "Noto Serif", "Times New Roman", Times, serif;
+  /* Montserrat: Latin alfabeli diller (Türkçe dahil) + Kiril. Kapsamadığı karakterler
+     (Yunanca, Arapça, Japonca/Çince/Korece ...) sıradaki yedek fontlardan otomatik gelir. */
+  --font: "Montserrat", "Noto Sans", "Segoe UI", Arial, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
   --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-base: 16px;
   --fs-lg: 20px; --fs-xl: 28px; --fs-2xl: 40px; --fs-3xl: 56px;
@@ -117,8 +116,8 @@
   -webkit-font-smoothing: antialiased;
 }
 .d-app *, .d-app *::before, .d-app *::after { box-sizing: border-box; }
-/* PERF: not inside SVG — on a large SVG (a score: thousands of nodes) "::selection" on every node made each
-   re-show ~20–25 ms slower. Text in SVG is not selected anyway. */
+/* PERF (Eqo Partitura copy): not inside SVG — on a score with thousands of SVG nodes this rule made every
+   page change and playback frame slower. Same look on all normal text. */
 .d-app :not(svg, svg *)::selection { background: color-mix(in srgb, var(--ana) 35%, transparent); }
 .d-app :focus-visible { outline: 2px solid var(--ana); outline-offset: 3px; border-radius: 8px; }
 
@@ -206,7 +205,7 @@
 /* ana eylem: ekranda en fazla bir tane */
 .d-btn.is-primary {
   background: var(--ana); color: var(--on-ana);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ana) 60%, transparent), 0 8px 28px color-mix(in srgb, var(--ana) 32%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ana) 60%, transparent), 0 6px 18px var(--shadow);   /* renkli ışıma yok */
 }
 .d-btn.is-primary:hover { background: color-mix(in srgb, var(--ana) 85%, #fff); }
 .d-btn.is-ghost { background: transparent; box-shadow: none; color: var(--muted); }
@@ -218,7 +217,7 @@
   border-radius: var(--r-pill); background: var(--chip); color: var(--muted); font-size: var(--fs-sm); font-weight: 500;
 }
 .d-chip.is-accent { background: color-mix(in srgb, var(--ana) 16%, transparent); color: var(--accent-text); }
-.d-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ana); box-shadow: 0 0 8px var(--ana); }
+.d-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ana); }
 
 .d-input {
   width: 100%; height: 42px; padding: 0 16px; border: 0; border-radius: var(--r-md);
@@ -251,7 +250,7 @@
 /* ilerleme */
 .d-progress { height: 4px; border-radius: 4px; background: var(--chip-2); overflow: hidden; }
 .d-progress > i { display: block; height: 100%; width: var(--p, 40%); border-radius: inherit;
-  background: linear-gradient(90deg, var(--isima), var(--ana)); box-shadow: 0 0 12px var(--ana); }
+  background: linear-gradient(90deg, var(--isima), var(--ana)); }
 
 /* liste */
 .d-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }

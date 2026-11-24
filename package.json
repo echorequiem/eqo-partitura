@@ -1,7 +1,7 @@
 {
   "name": "eqo-partitura",
   "productName": "Eqo Partitura",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Eqo Partitura · Echo Studio — turn MusicXML scores into scrolling, highlighted sheet-music videos (MP4 / WebM).",
   "author": {
     "name": "Echo Masterworks"

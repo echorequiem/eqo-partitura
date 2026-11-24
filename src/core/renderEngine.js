@@ -7,6 +7,8 @@ import { Muxer as WebmMuxer, StreamTarget as WebmStreamTarget } from "webm-muxer
 import { pickAudioEncoder, AudioTrackEncoder, audioEndTime, renderAudioTracks, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS } from "./audioEngine.js";
 import { PngStreamEncoder } from "./pngEncoder.js";
 import { drawCard, ensureCardFonts, cardPhaseAt, cardVideoOffset } from "./titleCards.js";
+import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont, infoCornerBox, infoReserve, meanLuma } from "./infoOverlay.js";
+import { drawKeyboard, keyboardHeight, keyboardRange, scoreShift } from "./keyboardOverlay.js";
 
 /** The card of a list that covers list-local time t. */
 const partAt = (list, t) => {
@@ -57,9 +59,9 @@ export function avcLevelHex(width, height, fps) {
   return "3e";
 }
 
-/** Bitrate from size and fps, capped so a file stays below ~8 GB. */
-export function chooseBitrate(width, height, fps, durationSec) {
-  let bps = clamp(width * height * fps * 0.09, 4e6, 40e6);
+/** Bitrate from size and fps (or the user's choice in Mbit/s), capped so a file stays below ~8 GB. */
+export function chooseBitrate(width, height, fps, durationSec, chosenMbps = 0) {
+  let bps = chosenMbps > 0 ? clamp(chosenMbps * 1e6, 1e6, 100e6) : clamp(width * height * fps * 0.09, 4e6, 40e6);
   const maxBytes = 8e9;
   if (durationSec > 0 && (bps * durationSec) / 8 > maxBytes) {
     bps = Math.max(2e6, (maxBytes * 8) / durationSec);
@@ -207,7 +209,8 @@ export class ScoreRaster {
         if (!(groups[layer] || []).length) continue;
         // keep only this layer's marked elements visible
         const cls = `.echo-mark-${layer}`;
-        const css = `svg *{visibility:hidden !important}${cls},${cls} *{visibility:visible !important}`;
+        // clipPath shapes stay visible (a hidden one clips everything away — e.g. the beam parts)
+        const css = `svg *{visibility:hidden !important}${cls},${cls} *,clipPath,clipPath *{visibility:visible !important}`;
         const layerText = text.replace(/<svg\b[^>]*>/, (m) => m + "<style>" + css + "</style>");
         this.images[layer] = await this._toImage(layerText);
         this.hasNotes = true;
@@ -546,6 +549,10 @@ export class RenderEngine {
         ctx.globalAlpha = 1;
       }
     }
+    if (f.keyboard) {
+      const ka = clamp((t - 0.3) / 0.8, 0, 1);
+      if (ka > 0) drawKeyboard(ctx, W, H, null, f.keyboard.range, f.colors, ka * ka * (3 - 2 * ka));
+    }
     // soft entrance from black (screens end in black)
     const fade = clamp(1 - t / 0.45, 0, 1);
     if (fade > 0) {
@@ -628,6 +635,10 @@ export class RenderEngine {
         ctx.globalAlpha = 1;
       }
     }
+    if (f.keyboard) {
+      const ka = 1 - clamp(t / 0.8, 0, 1);
+      if (ka > 0) drawKeyboard(ctx, W, H, null, f.keyboard.range, f.colors, ka * ka * (3 - 2 * ka));
+    }
     // to black at the end (screens start from black)
     const fade = clamp((t - (D - 0.45)) / 0.45, 0, 1);
     if (fade > 0) {
@@ -676,6 +687,26 @@ export class RenderEngine {
     if (f.showPlayhead) {
       ctx.fillStyle = f.accent;
       ctx.fillRect(Math.round(W / 2), 0, f.playheadW, H);
+    }
+    // live tempo / notes played in a corner (optional, page 3)
+    // piano keyboard along the bottom (optional, page 3)
+    const kbH = f.keyboard ? keyboardHeight(W, H) : 0;
+    if (f.keyboard) drawKeyboard(ctx, W, H, this.playbackEngine.keysAt(t), f.keyboard.range, f.colors);
+    if (f.info) {
+      const pb = this.playbackEngine;
+      // dark type on a light picture: how light the corner is, measured twice a second (with some hysteresis)
+      const bucket = Math.floor(t * 2);
+      if (f.infoToneBucket !== bucket) {
+        f.infoToneBucket = bucket;
+        const b = infoCornerBox(W, H - kbH, f.info.corner);
+        try {
+          if (!f.toneCtx) { const tc = document.createElement("canvas"); tc.width = 32; tc.height = 16; f.toneCtx = tc.getContext("2d", { willReadFrequently: true }); }
+          f.toneCtx.drawImage(f.canvas, b.x, b.y, b.w, b.h, 0, 0, 32, 16); // a small copy: a cheap read
+          const l = meanLuma(f.toneCtx.getImageData(0, 0, 32, 16).data);
+          f.infoTone = f.infoTone === "dark" ? (l < 0.45 ? "light" : "dark") : (l > 0.55 ? "dark" : "light");
+        } catch (_) { /* keep the last tone */ }
+      }
+      drawInfoOverlay(ctx, W, H - kbH, f.info, infoValues(pb, t), f.infoLabels, f.infoTone || "light");
     }
   }
 
@@ -1017,6 +1048,7 @@ export class RenderEngine {
       });
       if (this._cancel) throw new RenderError("CANCELLED");
 
+      if (infoActive(this.appState.info)) await ensureInfoFont(); // canvas text needs the face loaded
       bg = await this._prepareBackground();
       if (this._cancel) throw new RenderError("CANCELLED");
       for (const part of [...intro, ...outro]) {
@@ -1036,14 +1068,26 @@ export class RenderEngine {
 
       const bodyStyle = getComputedStyle(document.body);
       const secondColor = this.appState.dualColor ? this.appState.activeColor2 || activeColor : activeColor;
+      // the score keeps clear of the keyboard and the live info (same rule as the preview: scoreShift)
+      const kbOut = this.appState.keyboard ? keyboardHeight(W, H) : 0;
+      const infoRoom = infoActive(this.appState.info) ? infoReserve(W, H - kbOut, normalizeInfo(this.appState.info)) : { top: 0, bottom: 0 };
+      const scoreTop0 = H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k;
+      const drawnTop = scoreTop0 + (layout.contentH > 0 ? layout.contentTop : 0) * k; // the drawing, not the SVG box
+      const drawnH = (layout.contentH > 0 ? layout.contentH : layout.svgH) * k;
+      const shift = scoreShift(H, infoRoom.top, kbOut + infoRoom.bottom, drawnTop, drawnTop + drawnH);
       const f = {
         W, H, k, fps, canvas, ctx, tmp, tmpCtx, raster, bg, activeColor, realtime,
         colors: [activeColor, secondColor], // glow colour per staff slot (0 = first staff, 1 = others)
-        svgTop: Math.round(H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k),
+        svgTop: Math.round(scoreTop0) + shift,
+        keyboard: this.appState.keyboard
+          ? { range: keyboardRange(this.playbackEngine.keyRange && this.playbackEngine.keyRange.lo, this.playbackEngine.keyRange && this.playbackEngine.keyRange.hi, W / H) }
+          : null,
         // same rule as the preview (.has-bg-media): with background media the base is black in both themes
         bgColor: isDark || bg.media ? "#000000" : "#eaf3ec",
         accent: bodyStyle.getPropertyValue("--accent-yellow").trim() || "#cca700",
         showPlayhead: this.appState.showPlayhead !== false,
+        info: infoActive(this.appState.info) ? normalizeInfo(this.appState.info) : null,
+        infoLabels: this.appState.infoLabels || {},
         playheadW: Math.max(1, Math.round(2 * k)),
         sections: { intro, outro, introDuration: introDur, leadIn: leadDur, mainDuration, leadOut: leadDur },
         fx: fx && (fx.fog > 0 || fx.embers > 0) ? fx : null,
@@ -1058,7 +1102,7 @@ export class RenderEngine {
     }
   }
 
-  async startRender({ width, height, fps, format = "mp4", baseName = "Eqo Partitura", openSink, audio = null, cards = null, fx = null, leadIn = true }, onProgress) {
+  async startRender({ width, height, fps, format = "mp4", baseName = "Eqo Partitura", openSink, audio = null, cards = null, fx = null, leadIn = true, bitrateMbps = 0 }, onProgress) {
     const emit = (info) => { if (onProgress) onProgress(info); };
 
     if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") {
@@ -1079,7 +1123,7 @@ export class RenderEngine {
       const totalFrames = Math.ceil(built.totalDuration * fps);
       const videoDuration = totalFrames / fps;
 
-      const bitrate = chooseBitrate(W, H, fps, videoDuration);
+      const bitrate = chooseBitrate(W, H, fps, videoDuration, Number(bitrateMbps) || 0);
       // Videos (background, intro, outro) are decoded by seeking in time order: parallel lanes would make them
       // jump back and forth, so they use a single encoder.
       const candidates = await listEncoderCandidates(format, { width: W, height: H, fps, bitrate }, { allowLanes: !anyVideo });

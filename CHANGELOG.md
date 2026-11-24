@@ -3,6 +3,106 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-11-24
+
+### Added
+- **Piano keyboard (optional, page 3 · View):** a keyboard along the bottom of the video. The keys of the notes
+  sounding right now are pressed in the glow colour of their staff. Tied notes keep the key down, and a repeated
+  note is let go a moment early so it is seen again. A 16:9 video always shows the whole piano (88 keys); narrower
+  formats show whole octaves around the piece (at least four,
+  never past 88 keys); every C is marked with its octave (C4 = middle C). The score stays centred and moves only as far as it must to clear the keyboard and the live info in its corner (while a score is taller than the free room, its notes are drawn smaller so it fits; the chosen note size is kept and comes back when there is room). The same in
+  the preview, the page-4 preview and the video (it fades in and out with the score).
+- **Undo / redo** for the settings: <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or
+  <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>), up to 100 steps. It covers colours, theme, note size, tempo,
+  diamonds, fermatas, background placement, effects and live info.
+- **Autosave:** a project saved once is saved again quietly every two minutes while it has changes.
+- **Look templates (page 3 · Templates):** save the current look under a name and apply it to another piece.
+  A template holds colours, theme, note size, playhead, keyboard, effects, background placement and a
+  ready-made pattern, and live info.
+- **Tap tempo (page 3 · Timing):** tap along with the recording (button or <kbd>T</kbd>). "Set" makes the
+  result the start tempo at the beginning, or a tempo diamond at the playhead further on.
+- **Render progress on the taskbar** (yellow while paused), and a Windows notification when the video is ready
+  or the render fails while the window is in the background.
+
+### Changed
+- **New render animation, in three states:** before the render the rings breathe calmly; while rendering they
+  are cut into equal arcs that turn in opposite directions ring by ring (symmetric through the centre) and fill
+  with the accent from the centre as the video progresses; when it is done they slow down, close into full rings
+  and draw together into a small emblem of five rings while one pulse of the accent runs outwards (about 1 s).
+- **Speed changes once a measure:** the live speed is the average of the measure playing (note heads / the
+  measure's length), so it can be read; before, it was measured over the last two seconds and kept changing.
+- **Live info reads on light pictures:** on a light background (the light score theme, a beige or white picture)
+  the type turns dark with a light shadow. The video measures the corner twice a second.
+- **Keyboard drawn in depth:** front faces, bevelled black keys and their shadows; every edge on a whole pixel,
+  all white keys equally wide and every black key centred on its joint, so it is even and sharp at any size.
+  The keys are painted once and each frame only copies the pressed ones, so the keyboard barely slows the render
+  (720p24 test: 143 s → 99 s; 93 s without the keyboard).
+- Short confirmations (undo, autosave, templates, tap tempo) appear as a small message at the bottom that goes
+  by itself, instead of a dialog.
+
+## [1.0.1] - 2026-11-22
+
+### Changed
+- **Five steps:** Basics · Background · Settings · Preview · Export. The finished-video preview has its own page
+  (4), and the Export page (5) shows the render animation large in the middle, the percentage under it, and the
+  render buttons bottom right: pause, cancel and start. Page names and next / back buttons in all 10 languages.
+- **New app logo:** the purple bass clef alone, on a transparent background (no black square) — window,
+  taskbar, exe and Linux icons.
+- **New splash (16:9, 3.5 s):** the Echo Masterworks logo appears in the centre, slides to the left and the
+  wordmark builds up beside it. Drawn on one canvas filling the window, all pictures decoded before it starts.
+- **New look: "Diapason · Sahne".** Editorial headings, numbered sections with thin rules, flat panels and
+  capsule controls around the content; Studio violet only as a flat accent. No neon anywhere (no glow, halo or
+  coloured shadow) and no corner frames on hover.
+- More room: a slim sidebar (66 px: step numbers with short names), a slim title line instead of the top bar.
+  Every page fits the window without scrolling (page 2 panel: switches and sliders in pairs).
+- Red and green with a meaning: buttons that remove, stop or throw away (clear, delete, cancel the render, don't
+  save) are red; buttons that keep or make (save, apply, start the render) are green. Muted tones, no glow.
+- **Beamed notes glow by halves:** each note lights its own part of the beam — up to halfway to its neighbours —
+  for its own duration, so two notes share a beam equally (before, the whole beam was lit for the whole group).
+  The same in the preview and in the video.
+- The video bitrate is chosen automatically again (from size and frame rate); the choice on page 1 is gone.
+- The stage around the video frame is a dark surface with a fine grid instead of black, so the frame stands out
+  (also with the dark score theme).
+- Light theme: panels a shade darker, secondary text stronger — easier to read.
+- Numbers use the interface font (Montserrat, equal-width digits) instead of a separate monospace face.
+- The interface starts in English; once a language is chosen, the app keeps it.
+- The colour picker is a square with sharp corners, so the colours in its corners can be picked too.
+- Render: a new animation, the Echo spiral — rings whose halves turn against each other in a wave while a render
+  runs, filling with violet as the render progresses. It rests as calm concentric rings.
+- Interface font is now Montserrat (the Echo Masterworks typeface since 2026-11-22).
+- The music file is chosen on the Basics page (score, saved projects and music in one row; video format on the
+  left, a large colour screen on the right); volume and timing stay on the Background page.
+
+### Fixed
+- **rit. / rall. / accel. / a tempo** written in the score now change the tempo (like MuseScore 4: rit. and
+  rall. slow down to 75 %, accel. speeds up to 133 %, along their dashed line or to the end of the measure; the
+  new tempo holds until "a tempo" or the next tempo mark). Before, they were drawn but ignored, so a recording
+  drifted away from the notes at the end.
+- **Tempo with several marks at the same spot** (e.g. "Andantino" with a hidden 94 and "♩ = 90"): the visible
+  metronome mark wins (otherwise the last one), as MuseScore plays it — before, the first one was used and the
+  video ran 4 % fast. Tempo changes in the middle of a measure are read too. Checked against a recording of the
+  Prelude in C major (BWV 846): the final chord now comes within 0.1 s of the recording (it was 4.6 s early).
+- Intro / outro screens: the editor no longer overlaps the list. It opens in the list's place when a screen is
+  clicked or added and closes with "Back to list".
+- The note under the fermata setting is gone.
+- The dashed line of "rall. - - - -" (and of other words with a line, e.g. "cresc. - - -") is drawn into the
+  score up to the note where it ends, as in MuseScore; before, only the word was shown. Where stems or beams
+  reach that high, the line and its word move up above them instead of crossing the notes.
+- The sidebar can jump forward to any step whose way is open (e.g. from page 1 straight to Export once
+  everything is set), not only back.
+- The render percentage turns white while rendering (it stayed grey).
+
+### Added
+- **Ready-made backgrounds** for videos without a picture of their own: hexagons, triangles, grid, dots, waves,
+  lines, light and staves — dark Echo patterns made in the video's shape. One click puts the pattern in (full
+  opacity, dark score theme); it is saved with the project like a chosen picture.
+- **Video info** (Settings page, optional): live values set in italic serif type in a corner of the video —
+  notes played so far ("Notes: 524"), speed in notes per second ("Speed: 5 n/s") and the tempo heard right now
+  ("Tempo: ♩ 82", rit. and accel. included). Each can be switched on alone; the corner is the user's choice.
+- **F11** switches full screen on and off.
+- **Closing with unsaved changes** asks first: Save, Don't save or Cancel. Cancel keeps the app open; Save
+  closes it once the project is saved.
+
 ## [1.0.0] - 2026-11-20
 
 First stable release of Eqo Partitura · Echo Studio for Windows 10 / 11 (64-bit) and Linux (x86_64).

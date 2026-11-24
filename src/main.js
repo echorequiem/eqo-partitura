@@ -2,6 +2,7 @@ import "./styles/fonts.js";
 import "./styles/diapason.css"; // shared Echo design language (Echo Masterworks), used unchanged
 import "./styles/style.css";
 import { buildTimeline } from "./core/timelineBuilder.js";
+import { drawWordLines } from "./core/tempoWords.js";
 import { PlaybackEngine, DEFAULT_FERMATA_STRETCH } from "./core/playbackEngine.js";
 import { InlineColorPicker, normalizeHex } from "./ui/colorPicker.js";
 import { AmbientFxOverlay, drawAmbientFx, DEFAULT_FX_INTENSITY } from "./core/ambientFx.js";
@@ -14,22 +15,26 @@ import { decodeAudioFile } from "./core/audioEngine.js";
 import { translate, applyStaticTranslations } from "./i18n.js";
 import * as projectStore from "./platform/projectStore.js";
 import { openVideoSink, saveImages, showInFolder, appInfo } from "./platform/output.js";
-import { alertDialog, confirmDialog, isDialogOpen } from "./ui/dialogs.js";
+import { alertDialog, confirmDialog, showDialog, isDialogOpen } from "./ui/dialogs.js";
+import { BG_PRESETS, makePresetFile, drawPresetThumb } from "./core/bgPresets.js";
+import { drawKeyboard, keyboardHeight, keyboardRange, scoreShift } from "./core/keyboardOverlay.js";
+import { DEFAULT_INFO, normalizeInfo, drawInfoOverlay, infoValues, infoActive, infoReserve, ensureInfoFont, meanLuma } from "./core/infoOverlay.js";
 import { Sfx } from "./ui/sound.js";
 import { createLangPicker } from "./ui/langPicker.js";
+import { createRenderSpinner } from "./ui/renderSpinner.js";
 
 // =================================================================================================
 // 1) DOM references (a missing id throws immediately)
 // =================================================================================================
 const $ = (id) => {
   const el = document.getElementById(id);
-  if (!el) throw new Error(`index.html içinde #${id} bulunamadı`);
+  if (!el) throw new Error(`#${id} not found in index.html`);
   return el;
 };
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-const pages = { 1: $("page-1"), 2: $("page-2"), 3: $("page-3"), 4: $("page-4") };
-const stepIndicators = { 1: $("step-ind-1"), 2: $("step-ind-2"), 3: $("step-ind-3"), 4: $("step-ind-4") };
+const pages = { 1: $("page-1"), 2: $("page-2"), 3: $("page-3"), 4: $("page-4"), 5: $("page-5") };
+const stepIndicators = { 1: $("step-ind-1"), 2: $("step-ind-2"), 3: $("step-ind-3"), 4: $("step-ind-4"), 5: $("step-ind-5") };
 
 const languageSelect = $("language-select");
 const langPicker = createLangPicker(languageSelect); // Echo-styled menu over the (hidden) native select
@@ -46,6 +51,8 @@ const projectsListContainer = $("projects-list-container");
 const fpsButtons = $$("#fps-group .pill");
 const aspectButtons = $$("#aspect-group .pill");
 const resButtons = $$("#res-group .pill");
+const bitrateButtons = $$("#bitrate-group .pill");
+const BITRATES = [0, 8, 16, 32, 50]; // Mbit/s choices on page 1 (0 = automatic)
 const colorBtns = $$("#preset-colors .color-btn");
 const savedColorsEl = $("saved-colors");
 const saveColorBtn = $("save-color-btn");
@@ -79,6 +86,7 @@ const bgPosXVal = $("bg-pos-x-val");
 const bgPosYRange = $("bg-pos-y-range");
 const bgPosYVal = $("bg-pos-y-val");
 const bgGrayscaleBtn = $("bg-grayscale-btn");
+const bgPresetGrid = $("bg-preset-grid");
 
 // Page 2 — music
 const audioInput = $("audio-input");
@@ -137,9 +145,16 @@ const timeCurrentEl = $("time-current");
 const timeTotalEl = $("time-total");
 const fermataRange = $("fermata-range");
 const fermataVal = $("fermata-val");
+const infoCanvas = $("info-canvas");
+const infoBpmToggle = $("info-bpm-toggle");
+const infoNotesToggle = $("info-notes-toggle");
+const infoSpeedToggle = $("info-speed-toggle");
+const infoCornerButtons = $$("#info-corner-group .pill-mini");
 
 // Page 4
-const backToPage3Btn = $("back-to-page3");
+const backToPage3Btn = $("back-to-page3"); // on page 4 (Preview)
+const toPage5Btn = $("to-page5");
+const backToPage4Btn = $("back-to-page4"); // on page 5 (Export)
 const summaryFileName = $("summary-file-name");
 const summaryBgName = $("summary-bg-name");
 const formatPills = $$(".format-pill");
@@ -151,6 +166,8 @@ const renderOpenBtn = $("render-open-btn");
 const renderProgressBar = $("render-progress-bar");
 const renderActionArea = $("render-action-area");
 const renderPct = $("render-pct");
+// the Echo spiral turns while the card has the "rendering" class (setRenderVisual / pause / resume)
+const renderSpinner = createRenderSpinner({ canvas: $("render-loader"), area: renderActionArea, pctEl: renderPct });
 const renderEta = $("render-eta");
 const successDesc = $("success-desc");
 const restartBtn = $("restart-btn");
@@ -159,13 +176,14 @@ const restartBtn = $("restart-btn");
 // 2) State and engines
 // =================================================================================================
 const appState = {
-  lang: "tr",
+  lang: "en", // default; the user's choice is remembered (LANG_KEY)
   musicFile: null,
   musicFileName: "",
   applyScoreTempo: false, // apply the score's tempo once for a new file
   fps: 60,
   aspect: "16-9",
   resolution: "1080p",
+  bitrate: 0, // video bitrate in Mbit/s; 0 = automatic (from size and frame rate)
   appTheme: "dark",
   animTheme: "light",
   activeColor: "#FF0000",
@@ -181,6 +199,8 @@ const appState = {
   format: "mp4",
   isScoreLoaded: false,
   showPlayhead: true,
+  keyboard: false, // piano keyboard along the bottom of the video (core/keyboardOverlay.js)
+  info: { ...DEFAULT_INFO }, // live tempo / notes played in a corner of the video (core/infoOverlay.js)
   leadIn: true, // video only: notes settle in before the music (LEAD_IN_SECONDS) and are wiped away after it
   tempoDiamonds: [], // { id, xPx, ratio, bpm }; ratio = xPx / svg width (zoom-independent)
   layout: null, // measured on page 3, used by the renderer
@@ -198,7 +218,8 @@ const appState = {
     posX: 0,
     posY: 0,
     grayscale: false,
-    loop: true
+    loop: true,
+    preset: null // id of a ready-made background (core/bgPresets.js) while one is in use
   },
   audio: {
     file: null,
@@ -235,7 +256,7 @@ const engine = new PlaybackEngine({
   },
   onPlay: (t) => audioSyncPlay(t),
   onStop: () => audioSyncStop(),
-  onTick: (t) => updateTimeUi(t)
+  onTick: (t) => { updateTimeUi(t); drawInfoPreview(t); }
 });
 const renderEngine = new RenderEngine({
   playbackEngine: engine,
@@ -257,6 +278,22 @@ function describeError(err) {
   };
   if (err && err.code && map[err.code]) return tr(map[err.code]);
   return err && err.message ? err.message : String(err);
+}
+
+// a short message at the bottom of the window that goes by itself (undo, autosave, templates, tap tempo)
+let toastEl = null;
+let toastTimer = 0;
+function toast(message) {
+  if (!toastEl) {
+    toastEl = document.createElement("div");
+    toastEl.className = "app-toast d-glass";
+    toastEl.setAttribute("role", "status");
+    document.body.appendChild(toastEl);
+  }
+  toastEl.textContent = message;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
 }
 
 function notify(message, kind = "info") {
@@ -301,6 +338,7 @@ function refreshBgState() {
   // toggle rows: the label stays, ✓ / ✗ comes from the "on" class
   bgLoopBtn.classList.toggle("on", !!appState.bgSettings.loop);
   bgGrayscaleBtn.classList.toggle("on", !!appState.bgSettings.grayscale);
+  for (const b of bgPresetGrid.children) b.classList.toggle("active", b.dataset.preset === appState.bgSettings.preset);
 }
 
 function refreshAudioState() {
@@ -340,8 +378,105 @@ function refreshSummary() {
 function updateConfigSummary() {
   const resMap = { "720p": "720p", "1080p": "1080p", "2k": "2K", "4k": "4K" };
   configSummaryText.textContent =
-    `${appState.fps} FPS • ${resMap[appState.resolution] || appState.resolution} • ${appState.aspect.replace("-", ":")}`;
+    `${appState.fps} FPS • ${resMap[appState.resolution] || appState.resolution} • ${appState.aspect.replace("-", ":")}` +
+    (appState.bitrate ? ` • ${appState.bitrate} Mbps` : "");
 }
+
+// ---- Look templates (page 3): colours, theme, note size, playhead, effects, background placement, live info ----
+const TEMPLATES_KEY = "eqo.lookTemplates";
+const MAX_TEMPLATES = 30;
+const templateModal = $("template-modal");
+const templateList = $("template-list");
+const templateName = $("template-name");
+function loadTemplates() {
+  try {
+    const list = JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((t) => t && typeof t.name === "string" && t.look).slice(0, MAX_TEMPLATES) : [];
+  } catch (_) {
+    return [];
+  }
+}
+function storeTemplates(list) {
+  try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(list.slice(0, MAX_TEMPLATES))); } catch (_) { /* storage full / blocked */ }
+}
+function currentLook() {
+  const s = collectSettings();
+  return {
+    activeColor: s.activeColor, activeColor2: s.activeColor2, dualColor: s.dualColor, animTheme: s.animTheme,
+    zoom: s.zoom, showPlayhead: s.showPlayhead, info: s.info, fx: s.fx, keyboard: s.keyboard,
+    bg: { scale: s.bg.scale, opacity: s.bg.opacity, posX: s.bg.posX, posY: s.bg.posY, grayscale: s.bg.grayscale, preset: s.bg.preset }
+  };
+}
+function applyLook(look) {
+  const cur = collectSettings();
+  const zoomBefore = Number(zoomRange.value);
+  const { preset, ...bg } = look.bg || {};
+  applySettings({ ...cur, ...look, bg: { ...cur.bg, ...bg } }, { keepCards: true });
+  if (Number(zoomRange.value) !== zoomBefore) applyZoom();
+  // a template made with a ready-made background brings it along (a picture of the user's own stays)
+  if (preset && BG_PRESETS.includes(preset) && preset !== appState.bgSettings.preset) applyPreset(preset);
+}
+function renderTemplateList() {
+  const list = loadTemplates();
+  templateList.textContent = "";
+  if (!list.length) {
+    const p = document.createElement("div");
+    p.className = "template-empty";
+    p.textContent = tr("tplEmpty");
+    templateList.appendChild(p);
+    return;
+  }
+  list.forEach((t, i) => {
+    const row = document.createElement("div");
+    row.className = "template-item";
+    const sw = document.createElement("span");
+    sw.className = "tpl-swatch";
+    sw.style.background = normalizeHex(t.look.activeColor) || "#888";
+    const name = document.createElement("span");
+    name.className = "tpl-name";
+    name.textContent = t.name;
+    const use = document.createElement("button");
+    use.className = "d-btn is-sm is-positive";
+    use.textContent = tr("apply");
+    use.addEventListener("click", () => {
+      applyLook(t.look);
+      templateModal.style.display = "none";
+      toast(tr("tplApplied", { name: t.name }));
+    });
+    const del = document.createElement("button");
+    del.className = "d-btn is-sm is-danger";
+    del.textContent = tr("tplDelete");
+    del.addEventListener("click", () => {
+      const all = loadTemplates();
+      all.splice(i, 1);
+      storeTemplates(all);
+      renderTemplateList();
+    });
+    row.append(sw, name, use, del);
+    templateList.appendChild(row);
+  });
+}
+$("templates-btn").addEventListener("click", () => {
+  renderTemplateList();
+  templateName.value = "";
+  templateModal.style.display = "flex";
+  templateName.focus();
+});
+$("template-close").addEventListener("click", () => { templateModal.style.display = "none"; });
+templateModal.addEventListener("mousedown", (e) => { if (e.target === templateModal) templateModal.style.display = "none"; });
+function saveTemplate() {
+  const name = templateName.value.trim().slice(0, 40);
+  if (!name) { templateName.focus(); return; }
+  const list = loadTemplates().filter((t) => t.name !== name); // same name: replaced
+  list.unshift({ name, look: currentLook() });
+  storeTemplates(list);
+  templateName.value = "";
+  renderTemplateList();
+  toast(tr("tplSaved", { name }));
+}
+$("template-save").addEventListener("click", saveTemplate);
+templateName.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveTemplate(); } });
+
 
 function refreshDynamicTexts() {
   refreshMusicFileState();
@@ -358,10 +493,18 @@ function refreshDynamicTexts() {
   if (appState.statusKey) successDesc.textContent = tr(appState.statusKey);
   refreshRangeFills();
   refreshStepLocks();
+  refreshPresetTitles();
+  setInfo(appState.info); // the overlay's words follow the language
+}
+
+const LANG_KEY = "eqo-partitura-lang";
+function savedLanguage() {
+  try { const v = localStorage.getItem(LANG_KEY); return v && [...languageSelect.options].some((o) => o.value === v) ? v : null; } catch (_) { return null; }
 }
 
 function changeLanguage(lang) {
   appState.lang = lang;
+  try { localStorage.setItem(LANG_KEY, lang); } catch (_) { /* private mode: not remembered */ }
   languageSelect.value = lang;
   langPicker.sync();
   applyStaticTranslations(lang);
@@ -401,6 +544,8 @@ function refitViewports() {
     trackEl.dataset.currentX = String(translateX);
   }
   if (currentPage === 3 && appState.isScoreLoaded && after > 0) measureLayout();
+  syncKeyboardShift();
+  if (appState.isScoreLoaded) drawInfoPreview(engine.getTime());
 }
 
 /** Measurements for the renderer. CRITICAL: only valid while page 3 is visible (hidden pages measure 0). */
@@ -410,6 +555,7 @@ function measureLayout() {
   const svgRect = svg.getBoundingClientRect();
   const cRect = osmdContainer.getBoundingClientRect();
   if (!svgRect.width || !svgRect.height) return appState.layout;
+  const box = scoreContentBox(svg);
 
   appState.layout = {
     viewportW: viewportEl.clientWidth,
@@ -417,7 +563,9 @@ function measureLayout() {
     svgW: svgRect.width,
     svgH: svgRect.height,
     containerH: osmdContainer.offsetHeight || cRect.height,
-    svgOffsetTop: svgRect.top - cRect.top
+    svgOffsetTop: svgRect.top - cRect.top,
+    contentTop: box.top, // the drawing inside the SVG (px from its top) and its height
+    contentH: box.height
   };
   return appState.layout;
 }
@@ -442,25 +590,52 @@ function goToPage(pageNumber) {
   requestAnimationFrame(refitViewports);
 }
 
-// ---- Sidebar steps: back to any earlier step, forward one step at a time (the same buttons do the work) ----
-const NEXT_BTN = { 1: "next-to-page2", 2: "next-to-page3", 3: "to-page4" };
-const BACK_BTN = { 2: "back-to-page1", 3: "back-to-page2", 4: "back-to-page3" };
+// ---- Sidebar steps: any earlier step, and any later step whose way there is open (e.g. from page 1 straight to
+// the last page once everything is set). The pages' own back / next buttons do the work, so their checks and
+// preparations (score loading, measuring the layout on page 3, clean-up) always run.
+const NEXT_BTN = { 1: "next-to-page2", 2: "next-to-page3", 3: "to-page4", 4: "to-page5" };
+const BACK_BTN = { 2: "back-to-page1", 3: "back-to-page2", 4: "back-to-page3", 5: "back-to-page4" };
+let stepBusy = false;
 
 function stepAllowed(n) {
   if (n === currentPage) return true;
+  if (stepBusy || appState.rendering) return false;
   if (n < currentPage) return !$(BACK_BTN[currentPage]).disabled;
-  return n === currentPage + 1 && !$(NEXT_BTN[currentPage]).disabled;
+  if (n > currentPage + 1 && !appState.musicFile) return false;
+  for (let k = currentPage; k < n; k++) if ($(NEXT_BTN[k]).disabled) return false;
+  return true;
 }
 
 function refreshStepLocks() {
   for (const [n, el] of Object.entries(stepIndicators)) el.classList.toggle("locked", !stepAllowed(Number(n)));
 }
 
-function goToStep(n) {
+const waitUntil = async (fn, ms) => { const t0 = performance.now(); while (!fn() && performance.now() - t0 < ms) await nextFrame(); return fn(); };
+
+async function goToStep(n) {
   if (!stepAllowed(n) || n === currentPage) return;
-  if (n > currentPage) { $(NEXT_BTN[currentPage]).click(); return; }
-  // backwards: step by step, each page's own back button (keeps its clean-up logic)
-  while (currentPage > n && !$(BACK_BTN[currentPage]).disabled) $(BACK_BTN[currentPage]).click();
+  stepBusy = true;
+  try {
+    // forwards: one page at a time; wait until each page is really there (page 3 loads the score first)
+    while (currentPage < n) {
+      const btn = $(NEXT_BTN[currentPage]);
+      if (btn.disabled) break;
+      const from = currentPage;
+      btn.click();
+      if (!(await waitUntil(() => currentPage !== from, 3000))) break;
+      if (currentPage === 3) {
+        await waitUntil(() => appState.isScoreLoaded && !nextToPage3Btn.disabled, 120000);
+        if (!appState.isScoreLoaded || currentPage !== 3) break;
+      }
+      await nextFrame();
+      await nextFrame();
+    }
+    // backwards: step by step, each page's own back button (keeps its clean-up logic)
+    while (currentPage > n && !$(BACK_BTN[currentPage]).disabled) $(BACK_BTN[currentPage]).click();
+  } finally {
+    stepBusy = false;
+    refreshStepLocks();
+  }
 }
 
 for (const [n, el] of Object.entries(stepIndicators)) {
@@ -522,7 +697,7 @@ function setupPillGroup(buttons, dataAttr, stateKey, callback) {
     btn.addEventListener("click", () => {
       activatePill(buttons, dataAttr, btn.dataset[dataAttr]);
       const val = btn.dataset[dataAttr];
-      appState[stateKey] = stateKey === "fps" ? Number(val) : val;
+      appState[stateKey] = stateKey === "fps" || stateKey === "bitrate" ? Number(val) : val;
       if (callback) callback(appState[stateKey]);
       updateConfigSummary();
       refreshSummary();
@@ -531,8 +706,12 @@ function setupPillGroup(buttons, dataAttr, stateKey, callback) {
 }
 
 setupPillGroup(fpsButtons, "fps", "fps");
-setupPillGroup(aspectButtons, "aspect", "aspect", () => refitViewports());
+setupPillGroup(aspectButtons, "aspect", "aspect", () => {
+  refitViewports();
+  if (appState.bgSettings.preset) applyPreset(appState.bgSettings.preset);
+});
 setupPillGroup(resButtons, "res", "resolution");
+setupPillGroup(bitrateButtons, "bitrate", "bitrate"); // video bitrate in Mbit/s, 0 = automatic
 
 function setAppTheme(theme) {
   appState.appTheme = theme;
@@ -578,6 +757,7 @@ function updateColorVars() {
   const same = (el) => (el.dataset.color || "").toUpperCase() === hex;
   colorBtns.forEach((b) => b.classList.toggle("active", same(b)));
   savedColorsEl.querySelectorAll(".color-btn").forEach((b) => b.classList.toggle("active", same(b)));
+  if (appState.keyboard && appState.isScoreLoaded) drawInfoPreview(engine.getTime());
 }
 
 function applyActiveColor(hex) {
@@ -735,6 +915,30 @@ function syncBgControls() {
   bgPosYRange.value = s.posY; bgPosYVal.textContent = String(s.posY);
 }
 
+// how light the background picture is (0..1), for the live-info type colour in the preview
+function measureBgLuma(el) {
+  try {
+    const w = el.videoWidth || el.naturalWidth;
+    const h = el.videoHeight || el.naturalHeight;
+    if (!w || !h) return;
+    const c = document.createElement("canvas");
+    c.width = 32;
+    c.height = 18;
+    const cx = c.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(el, 0, 0, 32, 18);
+    appState.bgLuma = meanLuma(cx.getImageData(0, 0, 32, 18).data);
+    drawInfoPreview(engine.getTime());
+  } catch (_) { /* unreadable: keep the last value */ }
+}
+/** "dark" type on a light stage (light score theme without a picture, or a light picture), "light" otherwise. */
+function previewInfoTone() {
+  if (!appState.bgSettings.type) return appState.animTheme === "light" ? "dark" : "light";
+  const l = (appState.bgLuma ?? 0) * ((appState.bgSettings.opacity ?? 100) / 100);
+  return l > 0.5 ? "dark" : "light";
+}
+previewBgImg.addEventListener("load", () => measureBgLuma(previewBgImg));
+previewBgVideo.addEventListener("loadeddata", () => measureBgLuma(previewBgVideo));
+
 function applyBackgroundFile(file) {
   const isVideo = (file.type || "").startsWith("video/") || /\.(mp4|webm|mov|m4v)$/i.test(file.name);
   const isImage = (file.type || "").startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
@@ -772,6 +976,7 @@ function applyBackgroundFile(file) {
 }
 
 function clearBackground() {
+  appState.bgSettings.preset = null;
   viewportEl.classList.remove("has-bg-media");
   if (appState.bgSettings.url) URL.revokeObjectURL(appState.bgSettings.url);
   appState.bgSettings.type = null;
@@ -794,12 +999,64 @@ function clearBackground() {
   refreshSummary();
 }
 
+function applyOwnBackground(file) {
+  appState.bgSettings.preset = null;
+  applyBackgroundFile(file);
+}
 bgMediaInput.addEventListener("change", (e) => {
   const file = e.target.files && e.target.files[0];
-  if (file) applyBackgroundFile(file);
+  if (file) applyOwnBackground(file);
   e.target.value = "";
 });
-setupDropZone(bgDropZoneWrap, applyBackgroundFile);
+setupDropZone(bgDropZoneWrap, applyOwnBackground);
+
+// ---- ready-made backgrounds: patterns drawn in the video's shape and used like a chosen picture ----
+const videoAspect = () => {
+  const [aw, ah] = ASPECTS[appState.aspect] || ASPECTS["16-9"];
+  return aw / ah;
+};
+let presetToken = 0;
+async function applyPreset(id) {
+  const token = ++presetToken;
+  try {
+    const file = await makePresetFile(id, videoAspect(), tr("preset" + id[0].toUpperCase() + id.slice(1)));
+    if (token !== presetToken) return; // a newer choice won
+    appState.bgSettings.preset = id;
+    // a pattern is made to be seen as it is: full opacity (a photo is dimmed to 50 % by default)
+    appState.bgSettings.opacity = 100;
+    syncBgControls();
+    refreshRangeFills();
+    applyBackgroundFile(file);
+    // the patterns are dark: white notes (dark score theme), black ones would vanish in them
+    if (appState.animTheme !== "dark") setAnimTheme("dark");
+  } catch (err) {
+    console.error(err);
+  }
+}
+function buildPresetGrid() {
+  bgPresetGrid.innerHTML = "";
+  for (const id of BG_PRESETS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "bg-preset";
+    b.dataset.preset = id;
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 72;
+    b.appendChild(c);
+    drawPresetThumb(c, id);
+    b.addEventListener("click", () => applyPreset(id));
+    bgPresetGrid.appendChild(b);
+  }
+  refreshPresetTitles();
+  setInfo(appState.info); // the overlay's words follow the language
+}
+function refreshPresetTitles() {
+  for (const b of bgPresetGrid.children) {
+    const id = b.dataset.preset;
+    b.title = tr("preset" + id[0].toUpperCase() + id.slice(1));
+  }
+}
 
 bgClearBtn.addEventListener("click", clearBackground);
 
@@ -1064,6 +1321,10 @@ const cardDurationVal = $("card-duration-val");
 const cardDurationHint = $("card-duration-hint");
 const cardPreviewBtn = $("card-preview-btn");
 const cardPreviewCanvas = $("card-preview-canvas");
+$("card-editor-close").addEventListener("click", () => {
+  appState.cardEditing.index = -1; // nothing selected: back to the list
+  refreshCardEditor();
+});
 
 const editingList = () => appState.cards[appState.cardEditing.list];
 const currentCard = () => editingList()[appState.cardEditing.index] || null;
@@ -1146,7 +1407,10 @@ function refreshCardEditor() {
   if (appState.cardEditing.index >= editingList().length) appState.cardEditing.index = editingList().length - 1;
   renderCardList();
   const c = currentCard();
-  cardEditor.style.display = c ? "block" : "none";
+  cardEditor.style.display = c ? "flex" : "none";
+  // while a screen is being edited, the editor takes the place of the list (closed with "Back to list")
+  cardEditor.closest(".tab-pane").classList.toggle("editing", !!c);
+  if (c) $("card-editor-title").textContent = `${appState.cardEditing.index + 1}. ${cardLabel(c)}`;
   refreshSummary();
   if (!c) return;
   const hasVideo = !!c.videoFile;
@@ -1181,7 +1445,7 @@ function moveCard(i, delta) {
   const j = i + delta;
   if (j < 0 || j >= list.length) return;
   [list[i], list[j]] = [list[j], list[i]];
-  appState.cardEditing.index = j;
+  appState.cardEditing.index = -1;
   refreshCardEditor();
 }
 
@@ -1189,8 +1453,7 @@ function removeCard(i) {
   const list = editingList();
   const [c] = list.splice(i, 1);
   if (c && c.videoUrl) URL.revokeObjectURL(c.videoUrl);
-  const sel = appState.cardEditing.index;
-  appState.cardEditing.index = sel > i ? sel - 1 : Math.min(sel, list.length - 1);
+  appState.cardEditing.index = -1;
   refreshCardEditor();
 }
 
@@ -1203,7 +1466,7 @@ function clearCards() {
 }
 
 cardTabs.forEach((b) => b.addEventListener("click", () => {
-  appState.cardEditing = { list: b.dataset.card, index: appState.cards[b.dataset.card].length ? 0 : -1 };
+  appState.cardEditing = { list: b.dataset.card, index: -1 }; // the list first
   refreshCardEditor();
 }));
 cardAddTextBtn.addEventListener("click", () => addCard(newCard(appState.cardEditing.list, "text")));
@@ -1410,6 +1673,7 @@ function rebuildTimeline() {
   if (!scoreManager) return; // no score yet
   measureLayout(); // while the page is visible
   const steps = buildTimeline(scoreManager.osmd, osmdContainer);
+  drawWordLines(osmdContainer, steps, scoreManager.tempoWords); // "rall. - - - -" lines
   syncDiamondPositions();
   engine.setBpm(bpmInput.value);
   engine.setDiamonds(appState.tempoDiamonds);
@@ -1450,6 +1714,7 @@ async function ensureScoreLoaded() {
     await (await getScoreManager()).loadFromFile(appState.musicFile, Number(zoomRange.value));
     await nextFrame();
     rebuildTimeline();
+    engine.setTempoWords(scoreManager.tempoWords); // rit. / rall. / accel. / a tempo written in the score
     if (!engine.timedSteps.length) throw new Error(tr("renderNoNotes"));
     if (appState.applyScoreTempo) {
       appState.applyScoreTempo = false;
@@ -1458,6 +1723,8 @@ async function ensureScoreLoaded() {
       try { applyScoreMeta(sheet && sheet.TitleString, sheet && sheet.ComposerString); } catch (_) { /* optional */ }
     }
     appState.isScoreLoaded = true;
+    syncKeyboardShift();
+    undoReset();
   } finally {
     setScoreLoading(false);
   }
@@ -1474,7 +1741,7 @@ nextToPage3Btn.addEventListener("click", async () => {
     refitViewports();
     measureLayout();
   } catch (err) {
-    console.error("Nota yükleme hatası:", err);
+    console.error("Score load error:", err);
     goToPage(2);
     notify(tr("scoreLoadFailed") + describeError(err), "error");
   } finally {
@@ -1612,8 +1879,84 @@ function setPlayhead(on) {
 }
 playheadToggle.addEventListener("change", (e) => setPlayhead(e.target.checked));
 
+// ---- Keyboard view: a piano along the bottom, the keys of the sounding notes pressed in the glow colour ----
+const keyboardToggle = $("keyboard-toggle");
+function setKeyboard(on) {
+  appState.keyboard = !!on;
+  keyboardToggle.checked = appState.keyboard;
+  viewportEl.classList.toggle("has-keyboard", appState.keyboard);
+  syncKeyboardShift();
+  drawInfoPreview(engine.getTime());
+}
+/**
+ * Where the drawn score sits inside its SVG (screen px from the SVG's top): OSMD's SVG is taller than the
+ * staves, notes and marks it holds, so the clearance rules use the drawing's own box.
+ */
+function scoreContentBox(svg) {
+  const r = svg.getBoundingClientRect();
+  try {
+    const b = svg.getBBox();
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    if (vb && vb.height > 0 && b.height > 0) {
+      const sy = r.height / vb.height;
+      return { top: (b.y - vb.y) * sy, height: b.height * sy };
+    }
+  } catch (_) { /* not rendered yet */ }
+  return { top: 0, height: r.height };
+}
+
+// The notes are drawn smaller than the chosen size while the score is too tall for the room the keyboard and the
+// live info leave. The slider keeps the chosen size, so it comes back when there is room again.
+const MIN_FIT_ZOOM = 20; // percent
+let zoomLimit = Infinity; // largest note size (percent) that fits now
+const fittedZoom = () => Math.min(Number(zoomRange.value), zoomLimit);
+function showZoomValue() {
+  const chosen = Number(zoomRange.value);
+  zoomVal.textContent = zoomLimit < chosen ? `${chosen} → ${zoomLimit}` : String(chosen);
+}
+function queueFit() {
+  if (!scoreManager || !appState.isScoreLoaded || appState.rendering || currentPage !== 3 || zoomBusy || zoomSession) return;
+  const diff = fittedZoom() - Math.round(scoreManager.currentZoom * 100);
+  // one step of slack upwards, so rounding cannot make it swing between two sizes
+  if (diff === 0 || (diff === 1 && zoomLimit < Number(zoomRange.value))) return;
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(applyZoom, 150);
+}
+
+// the score moves only as far as needed to clear the keyboard and the live info (same rule as the render)
+function syncKeyboardShift() {
+  const W = viewportEl.clientWidth;
+  const H = viewportEl.clientHeight;
+  const kb = appState.keyboard ? keyboardHeight(W, H) : 0;
+  const room = infoActive(appState.info) ? infoReserve(W, H - kb, appState.info) : { top: 0, bottom: 0 };
+  let shift = 0;
+  let limit = H > 0 ? Infinity : zoomLimit; // a hidden page measures 0: keep the last value
+  const svg = osmdContainer.querySelector("svg");
+  const cH = osmdContainer.offsetHeight;
+  if (H > 0 && svg && cH && (kb > 0 || room.top > 0 || room.bottom > 0)) {
+    const s = svg.getBoundingClientRect();
+    const c = osmdContainer.getBoundingClientRect();
+    if (s.height && c.height) {
+      const f = cH / c.height; // unscaled px (a zoom drag scales the track)
+      const box = scoreContentBox(svg);
+      const top = H / 2 - cH / 2 + (s.top - c.top + box.top) * f;
+      shift = scoreShift(H, room.top, kb + room.bottom, top, top + box.height * f);
+      const free = H - room.top - kb - room.bottom;
+      if (scoreManager && box.height > 0 && free > 0) {
+        limit = Math.max(MIN_FIT_ZOOM, Math.floor((scoreManager.currentZoom * 100 * free) / (box.height * f)));
+      }
+    }
+  }
+  viewportEl.style.setProperty("--score-shift", `${shift}px`);
+  zoomLimit = limit;
+  showZoomValue();
+  queueFit();
+}
+keyboardToggle.addEventListener("change", (e) => setKeyboard(e.target.checked));
+
 function setAnimTheme(theme) {
   appState.animTheme = theme;
+  if (appState.isScoreLoaded) requestAnimationFrame(() => drawInfoPreview(engine.getTime()));
   animThemeButtons.forEach((b) => b.classList.toggle("active", b.dataset.animtheme === theme));
   viewportEl.classList.toggle("dark-anim-theme", theme === "dark");
   viewportEl.classList.toggle("light-anim-theme", theme === "light");
@@ -1637,7 +1980,7 @@ function beginZoomSession() {
 
 function previewZoom(percent) {
   const s = beginZoomSession();
-  const ratio = percent / 100 / s.fromZoom;
+  const ratio = Math.min(percent, zoomLimit) / 100 / s.fromZoom;
   // scale around the note under the playhead so it stays in place
   const centerX = viewportEl.clientWidth / 2 - Number(trackEl.dataset.currentX || 0);
   osmdContainer.style.transformOrigin = `${centerX}px 50%`;
@@ -1646,12 +1989,14 @@ function previewZoom(percent) {
 }
 
 async function applyZoom() {
+  clearTimeout(zoomTimer);
+  if (appState.rendering) return;
   if (zoomBusy) {
     zoomTimer = setTimeout(applyZoom, 120);
     return;
   }
   const session = beginZoomSession();
-  const target = Number(zoomRange.value);
+  const target = fittedZoom();
   if (!scoreManager || !appState.isScoreLoaded || Math.abs(target / 100 - scoreManager.currentZoom) < 1e-6) {
     endZoomSession();
     return;
@@ -1663,13 +2008,15 @@ async function applyZoom() {
     osmdContainer.style.transform = "";
     await nextFrame();
     rebuildTimeline(); // same musical timing, new x positions
+    syncKeyboardShift(); // a taller or shorter score needs more or less room above the keyboard
   } catch (err) {
-    console.error("Zoom hatası:", err);
+    console.error("Zoom error:", err);
     notify(tr("scoreLoadFailed") + describeError(err), "error");
   } finally {
     zoomBusy = false;
     setScoreLoading(false);
     endZoomSession(session);
+    if (Math.round(scoreManager.currentZoom * 100) === target) queueFit(); // changed meanwhile
   }
 }
 
@@ -1686,12 +2033,12 @@ function endZoomSession(session = zoomSession) {
 }
 
 zoomRange.addEventListener("input", (e) => {
-  zoomVal.textContent = e.target.value;
+  showZoomValue();
   if (!appState.isScoreLoaded || zoomBusy) return;
   previewZoom(Number(e.target.value));
 });
 zoomRange.addEventListener("change", () => {
-  zoomVal.textContent = zoomRange.value;
+  showZoomValue();
   if (!appState.isScoreLoaded) return;
   clearTimeout(zoomTimer);
   zoomTimer = setTimeout(applyZoom, 60); // released (or keyboard step): real re-layout once
@@ -1782,6 +2129,54 @@ function renderAllDiamonds() {
   });
 }
 
+
+// ---- Tap tempo: the median of the last taps; a pause of 2.5 s starts a new count ----
+const tapBtn = $("tap-btn");
+const tapBpmEl = $("tap-bpm");
+const tapApplyBtn = $("tap-apply");
+const tapTimes = [];
+let tapBpm = 0;
+function tapTempo() {
+  const now = performance.now();
+  if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2500) tapTimes.length = 0;
+  tapTimes.push(now);
+  if (tapTimes.length > 9) tapTimes.shift();
+  tapBtn.classList.add("tapped");
+  setTimeout(() => tapBtn.classList.remove("tapped"), 90);
+  if (tapTimes.length < 3) {
+    tapBpmEl.textContent = "♩ …";
+    return;
+  }
+  const gaps = tapTimes.slice(1).map((t, i) => t - tapTimes[i]).sort((a, b) => a - b);
+  const median = gaps[Math.floor(gaps.length / 2)];
+  tapBpm = clamp(Math.round((60000 / median) * 10) / 10, 20, 400);
+  tapBpmEl.textContent = `♩ ${tapBpm}`;
+  tapApplyBtn.disabled = !appState.isScoreLoaded;
+}
+tapBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); tapTempo(); });
+tapBtn.addEventListener("click", (e) => { if (e.detail === 0) tapTempo(); }); // keyboard activation
+tapApplyBtn.addEventListener("click", () => {
+  if (!tapBpm || !appState.isScoreLoaded) return;
+  const layout = measureLayout();
+  const translateX = Number(trackEl.dataset.currentX || 0);
+  const x = layout && layout.svgW ? clamp(viewportEl.clientWidth / 2 - translateX, 0, layout.svgW) : 0;
+  const first = engine.steps && engine.steps.length ? engine.steps[0].x : 0;
+  if (!layout || !layout.svgW || x <= first + 2) {
+    // at the beginning: the start tempo
+    bpmInput.value = String(tapBpm);
+    engine.setBpm(bpmInput.value);
+    toast(tr("tapSetStart", { bpm: tapBpm }));
+  } else {
+    // later in the score: a tempo diamond at the playhead (one already there is updated)
+    const near = appState.tempoDiamonds.find((d) => Math.abs(d.xPx - x) < 3);
+    if (near) near.bpm = tapBpm;
+    else appState.tempoDiamonds.push({ id: Date.now(), xPx: x, ratio: x / layout.svgW, bpm: tapBpm });
+    engine.setDiamonds(appState.tempoDiamonds);
+    renderAllDiamonds();
+    toast(tr("tapSetDiamond", { bpm: tapBpm }));
+  }
+});
+
 addDiamondBtn.addEventListener("click", () => {
   if (!appState.isScoreLoaded) return;
   if (engine.isPlaying) {
@@ -1845,10 +2240,13 @@ stripFmtBtns.forEach((btn) => {
   });
 });
 
-toPage4Btn.addEventListener("click", () => {
+toPage4Btn.addEventListener("click", async () => {
   if (!appState.isScoreLoaded) return;
   engine.stop();
   playBtn.textContent = tr("play");
+  while (zoomBusy) await nextFrame(); // a note size change still under way
+  await applyZoom(); // or still waiting
+  if (currentPage !== 3) return;
   measureLayout(); // CRITICAL: page 3 is still visible — measure now
   refreshSummary();
   setStatusKey("readyToRender");
@@ -1873,7 +2271,18 @@ function setStatusText(text, kind = "") {
   successDesc.className = "render-status-text" + (kind ? ` ${kind}` : "");
 }
 
-/** The seal turns only while a render runs (CSS, class "rendering"); otherwise it rests, faded. */
+/** The Echo spiral (ui/renderSpinner.js) turns only while a render runs (class "rendering"); otherwise it rests. */
+// taskbar progress and a system notification (desktop only; no-ops in the browser)
+const desktopApp = () => (window.echo && window.echo.app) || null;
+function taskbarProgress(value, mode) {
+  const a = desktopApp();
+  if (a && a.progress) a.progress(value, mode).catch(() => {});
+}
+function systemNotify(title, body) {
+  const a = desktopApp();
+  if (a && a.notify) a.notify(title, body).catch(() => {});
+}
+
 function setRenderVisual(running, pct = null) {
   renderActionArea.classList.toggle("rendering", running);
   if (pct !== null) renderPct.textContent = `${Math.round(pct)}%`;
@@ -1884,11 +2293,11 @@ function setRenderUi(running) {
   appState.rendering = running;
   setRenderVisual(running);
   renderBtn.disabled = running;
-  renderCancelBtn.style.display = running ? "" : "none";
-  renderPauseBtn.style.display = running ? "" : "none";
+  renderCancelBtn.disabled = !running;
+  renderPauseBtn.disabled = !running;
   renderPauseBtn.textContent = tr("pauseRender");
   if (running) renderOpenBtn.style.display = "none";
-  backToPage3Btn.disabled = running;
+  backToPage4Btn.disabled = running;
   restartBtn.disabled = running;
   saveProjectBtn3.disabled = running;
 }
@@ -1901,6 +2310,7 @@ function setFormat(format) {
     radio.checked = active;
     p.classList.toggle("active", active);
   });
+  updateConfigSummary();
 }
 
 formatPills.forEach((pill) => {
@@ -1908,11 +2318,17 @@ formatPills.forEach((pill) => {
 });
 
 backToPage3Btn.addEventListener("click", () => goToPage(3));
+backToPage4Btn.addEventListener("click", () => goToPage(4));
+toPage5Btn.addEventListener("click", () => {
+  refreshSummary();
+  goToPage(5);
+});
 
 renderCancelBtn.addEventListener("click", () => renderEngine.cancel());
 
 // pause: the render loop just waits (no CPU load)
 let pausedAt = 0;
+let lastRenderPct = 0;
 renderPauseBtn.addEventListener("click", () => {
   if (!appState.rendering) return;
   if (renderEngine.paused) {
@@ -1920,12 +2336,14 @@ renderPauseBtn.addEventListener("click", () => {
     renderPausedTotal += performance.now() - pausedAt;
     renderPauseBtn.textContent = tr("pauseRender");
     renderActionArea.classList.add("rendering");
+    taskbarProgress(lastRenderPct / 100, "normal");
   } else {
     renderEngine.pause();
     pausedAt = performance.now();
     renderPauseBtn.textContent = tr("resumeRender");
     renderActionArea.classList.remove("rendering"); // the seal stops while paused
     renderEta.textContent = tr("renderPaused");
+    taskbarProgress(lastRenderPct / 100, "paused");
   }
 });
 renderOpenBtn.addEventListener("click", () => showInFolder(appState.lastOutputPath).catch(console.error));
@@ -1945,6 +2363,8 @@ renderBtn.addEventListener("click", async () => {
   renderPausedTotal = 0;
   const onProgress = (info) => {
     const pct = info.pct ?? 0;
+    lastRenderPct = pct;
+    if (!renderEngine.paused) taskbarProgress(pct / 100, "normal");
     renderProgressBar.style.width = `${pct}%`;
     renderPct.textContent = `${pct}%`;
     let status;
@@ -1984,7 +2404,8 @@ renderBtn.addEventListener("click", async () => {
         audio: a.buffer ? { buffer: a.buffer, offset: a.offset, volume: a.volume / 100, extendToAudio: true } : null,
         cards: await prepareCardsForRender(),
         fx: fxLevelsNow(),
-        leadIn: appState.leadIn
+        leadIn: appState.leadIn,
+        bitrateMbps: appState.bitrate
       },
       onProgress
     );
@@ -1996,6 +2417,8 @@ renderBtn.addEventListener("click", async () => {
     if (result.audioDropped) msg += " " + tr("renderAudioDropped");
     setStatusText(msg, "ok");
     Sfx.chime();
+    renderSpinner.done();
+    systemNotify(tr("notifyDoneTitle"), result.fileName || "");
     renderOpenBtn.style.display = result.path ? "" : "none";
   } catch (err) {
     if (err && err.code === "CANCELLED") {
@@ -2003,11 +2426,14 @@ renderBtn.addEventListener("click", async () => {
       renderPct.textContent = "0%";
       setStatusText(tr("renderCancelled"));
     } else {
-      console.error("Render hatası:", err);
+      console.error("Render error:", err);
       setStatusText(tr("renderFailed") + describeError(err), "error");
+      systemNotify(tr("notifyFailTitle"), describeError(err));
     }
   } finally {
     setRenderUi(false);
+    lastRenderPct = 0;
+    taskbarProgress(-1);
   }
 });
 
@@ -2111,7 +2537,7 @@ async function buildFinalPreview() {
       updateFinalUi();
       return player;
     } catch (err) {
-      console.error("Önizleme hatası:", err);
+      console.error("Preview error:", err);
       notify(tr("finalPreviewFailed") + describeError(err), "error");
       return null;
     } finally {
@@ -2158,6 +2584,7 @@ restartBtn.addEventListener("click", () => {
   appState.tempoDiamonds = [];
   appState.lastOutputPath = null;
   engine.setSteps([]);
+  engine.setTempoWords(null);
   engine.setDiamonds([]);
   renderAllDiamonds();
   clearBackground();
@@ -2170,8 +2597,54 @@ restartBtn.addEventListener("click", () => {
   renderOpenBtn.style.display = "none";
   refreshMusicFileState();
   refreshSummary();
+  savedSignature = null;
   goToPage(1);
 });
+
+// =================================================================================================
+// 9b) Live info in a corner of the video (page 3 settings; drawn over the preview and into the video)
+// =================================================================================================
+function setInfo(info) {
+  appState.info = normalizeInfo(info);
+  infoBpmToggle.checked = appState.info.bpm;
+  infoNotesToggle.checked = appState.info.notes;
+  infoSpeedToggle.checked = appState.info.speed;
+  activatePill(infoCornerButtons, "corner", appState.info.corner);
+  syncKeyboardShift();
+  appState.infoLabels = infoLabels();
+  if (infoActive(appState.info)) ensureInfoFont().then(() => drawInfoPreview(engine.getTime()));
+  drawInfoPreview(engine.getTime());
+}
+/** The words of the overlay in the interface language (the render reads them from appState too). */
+function infoLabels() {
+  return { notes: tr("ovLabelNotes"), speed: tr("ovLabelSpeed"), perSecond: tr("ovPerSecond"), tempo: tr("ovLabelTempo") };
+}
+function drawInfoPreview(t) {
+  const W = viewportEl.clientWidth;
+  const H = viewportEl.clientHeight;
+  if (!W || !H) return;
+  const dpr = window.devicePixelRatio || 1;
+  const cw = Math.round(W * dpr);
+  const ch = Math.round(H * dpr);
+  if (infoCanvas.width !== cw || infoCanvas.height !== ch) { infoCanvas.width = cw; infoCanvas.height = ch; }
+  const ctx = infoCanvas.getContext("2d");
+  ctx.clearRect(0, 0, cw, ch);
+  if (!appState.isScoreLoaded) return;
+  let kbH = 0;
+  if (appState.keyboard) {
+    const r = engine.keyRange;
+    const colors = [appState.activeColor, appState.dualColor ? appState.activeColor2 || appState.activeColor : appState.activeColor];
+    drawKeyboard(ctx, cw, ch, t >= 0 ? engine.keysAt(t) : null, keyboardRange(r && r.lo, r && r.hi, cw / ch), colors);
+    kbH = keyboardHeight(cw, ch);
+  }
+  if (!infoActive(appState.info)) return;
+  appState.infoLabels = infoLabels();
+  drawInfoOverlay(ctx, cw, ch - kbH, appState.info, infoValues(engine, t), appState.infoLabels, previewInfoTone());
+}
+infoBpmToggle.addEventListener("change", () => setInfo({ ...appState.info, bpm: infoBpmToggle.checked }));
+infoSpeedToggle.addEventListener("change", () => setInfo({ ...appState.info, speed: infoSpeedToggle.checked }));
+infoNotesToggle.addEventListener("change", () => setInfo({ ...appState.info, notes: infoNotesToggle.checked }));
+infoCornerButtons.forEach((b) => b.addEventListener("click", () => setInfo({ ...appState.info, corner: b.dataset.corner })));
 
 // =================================================================================================
 // 10) Projects: save / load
@@ -2181,6 +2654,7 @@ function collectSettings() {
     fps: appState.fps,
     aspect: appState.aspect,
     resolution: appState.resolution,
+    bitrate: appState.bitrate,
     activeColor: appState.activeColor,
     activeColor2: appState.activeColor2,
     dualColor: appState.dualColor,
@@ -2190,6 +2664,8 @@ function collectSettings() {
     bpm: Number(bpmInput.value),
     fermataStretch: appState.fermataStretch,
     showPlayhead: appState.showPlayhead,
+    info: { ...appState.info },
+    keyboard: appState.keyboard,
     diamonds: appState.tempoDiamonds.map((d) => ({ id: d.id, ratio: d.ratio, bpm: d.bpm })),
     bg: {
       scale: appState.bgSettings.scale,
@@ -2197,7 +2673,8 @@ function collectSettings() {
       posX: appState.bgSettings.posX,
       posY: appState.bgSettings.posY,
       grayscale: appState.bgSettings.grayscale,
-      loop: appState.bgSettings.loop
+      loop: appState.bgSettings.loop,
+      preset: appState.bgSettings.preset
     },
     audio: {
       offset: appState.audio.offset,
@@ -2224,10 +2701,11 @@ function cardsFromSettings(kind, saved) {
   });
 }
 
-function applySettings(s) {
+function applySettings(s, { keepCards = false } = {}) {
   if (s.fps) { appState.fps = Number(s.fps); activatePill(fpsButtons, "fps", s.fps); }
   if (s.aspect && ASPECTS[s.aspect]) { appState.aspect = s.aspect; activatePill(aspectButtons, "aspect", s.aspect); }
   if (s.resolution) { appState.resolution = s.resolution; activatePill(resButtons, "res", s.resolution); }
+  appState.bitrate = 0; // 1.0.1: always automatic (from size and frame rate); the choice was removed
   appState.colorTarget = "a";
   if (s.activeColor) appState.activeColor = normalizeHex(s.activeColor) || appState.activeColor;
   if (s.activeColor2) appState.activeColor2 = normalizeHex(s.activeColor2) || appState.activeColor2;
@@ -2236,10 +2714,12 @@ function applySettings(s) {
   updateColorVars();
   if (s.format === "mp4" || s.format === "webm") setFormat(s.format);
   if (s.animTheme === "dark" || s.animTheme === "light") setAnimTheme(s.animTheme);
-  if (s.zoom) { zoomRange.value = s.zoom; zoomVal.textContent = String(s.zoom); }
+  if (s.zoom) { zoomRange.value = s.zoom; showZoomValue(); }
   if (s.bpm) bpmInput.value = s.bpm;
   setFermataStretch(s.fermataStretch ?? DEFAULT_FERMATA_STRETCH);
   setPlayhead(s.showPlayhead !== false);
+  setInfo(normalizeInfo(s.info));
+  setKeyboard(!!s.keyboard);
   if (s.bg) {
     Object.assign(appState.bgSettings, {
       scale: s.bg.scale ?? 100,
@@ -2247,7 +2727,8 @@ function applySettings(s) {
       posX: s.bg.posX ?? 0,
       posY: s.bg.posY ?? 0,
       grayscale: !!s.bg.grayscale,
-      loop: s.bg.loop !== false
+      loop: s.bg.loop !== false,
+      preset: keepCards ? appState.bgSettings.preset : (BG_PRESETS.includes(s.bg.preset) ? s.bg.preset : null)
     });
     syncBgControls();
     applyBgTransforms();
@@ -2267,25 +2748,115 @@ function applySettings(s) {
   }
   applyFx();
   setLeadIn(s.leadIn !== false);
+  if (keepCards) { // undo / redo: the screens and their videos stay as they are
+    updateConfigSummary();
+    refitViewports();
+    return;
+  }
   clearCards();
   if (s.cards) {
     appState.cards.intro = cardsFromSettings("intro", s.cards.intro);
     appState.cards.outro = cardsFromSettings("outro", s.cards.outro);
   }
-  appState.cardEditing = { list: "intro", index: appState.cards.intro.length ? 0 : -1 };
+  appState.cardEditing = { list: "intro", index: -1 };
   refreshCardEditor();
   updateConfigSummary();
   refitViewports();
 }
 
-async function saveCurrentProject() {
+/** Everything a saved project holds, as one string: differs from savedSignature = unsaved changes. */
+let savedSignature = null;
+function projectSignature() {
+  if (!appState.musicFile) return null; // nothing to save
+  const f = (x) => (x ? `${x.name}|${x.size}|${x.lastModified}` : "");
+  return JSON.stringify([
+    collectSettings(), f(appState.musicFile), appState.bgSettings.type ? f(appState.bgFile) : "", f(appState.audio.file),
+    appState.cards.intro.map((c) => f(c.videoFile)), appState.cards.outro.map((c) => f(c.videoFile))
+  ]);
+}
+function isProjectDirty() {
+  const s = projectSignature();
+  return s !== null && s !== savedSignature;
+}
+
+// ---- Undo / redo (Ctrl+Z, Ctrl+Y / Ctrl+Shift+Z): snapshots of the settings, taken when they settle ----
+// Screens (intro / outro) and the files themselves are not part of it; a ready-made background keeps its picture.
+const UNDO_LIMIT = 100;
+const undoStack = [];
+const redoStack = [];
+let undoLast = null; // the settled state the next change is compared with
+let undoRestoring = false;
+const undoSnapshot = () => {
+  const s = collectSettings();
+  delete s.cards;
+  return JSON.stringify(s);
+};
+function undoWatch() {
+  if (!appState.isScoreLoaded || appState.rendering || undoRestoring || zoomBusy) return;
+  if (document.querySelector(":active")) return; // a slider is still being dragged
+  const now = undoSnapshot();
+  if (undoLast === null) { undoLast = now; return; }
+  if (now === undoLast) return;
+  undoStack.push(undoLast);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  undoLast = now;
+}
+function undoReset() {
+  undoStack.length = 0;
+  redoStack.length = 0;
+  undoLast = null;
+}
+function restoreSnapshot(json) {
+  const s = JSON.parse(json);
+  const zoomBefore = Number(zoomRange.value);
+  undoRestoring = true;
+  try {
+    applySettings(s, { keepCards: true });
+    engine.setBpm(bpmInput.value);
+    appState.tempoDiamonds = (s.diamonds || []).map((d, i) => ({ id: d.id || Date.now() + i, ratio: d.ratio, bpm: d.bpm, xPx: 0 }));
+    syncDiamondPositions();
+    engine.setDiamonds(appState.tempoDiamonds);
+    renderAllDiamonds();
+    updateMusicEnd();
+    refreshSummary();
+  } finally {
+    undoRestoring = false;
+  }
+  undoLast = undoSnapshot(); // as it now stands (applying may normalise a value)
+  if (Number(zoomRange.value) !== zoomBefore) applyZoom();
+}
+function undoStep(dir) {
+  if (!appState.isScoreLoaded || appState.rendering) return;
+  undoWatch(); // a change not yet recorded becomes a step first
+  const from = dir < 0 ? undoStack : redoStack;
+  const to = dir < 0 ? redoStack : undoStack;
+  if (!from.length) {
+    toast(tr(dir < 0 ? "undoNone" : "redoNone"));
+    return;
+  }
+  to.push(undoLast);
+  restoreSnapshot(from.pop());
+  toast(tr(dir < 0 ? "undoDone" : "redoDone"));
+}
+setInterval(undoWatch, 400);
+
+// ---- Autosave: a project saved once is saved again quietly every two minutes while it has changes ----
+const AUTOSAVE_MS = 120000;
+setInterval(() => {
+  if (!appState.projectId || appState.rendering || !isProjectDirty() || isDialogOpen()) return;
+  saveCurrentProject({ quiet: true });
+}, AUTOSAVE_MS);
+
+/** @returns true when the project was saved */
+async function saveCurrentProject({ quiet = false } = {}) {
   if (!projectStore.isAvailable()) {
     notify(tr("projUnavailable"));
-    return;
+    return false;
   }
   if (!appState.musicFile) {
     notify(tr("projNeedFile"));
-    return;
+    return false;
   }
   try {
     const name = baseNameOfMusic();
@@ -2300,11 +2871,15 @@ async function saveCurrentProject() {
       outroFiles: appState.cards.outro.map((c) => c.videoFile || null)
     });
     appState.projectId = id;
+    savedSignature = projectSignature();
     refreshProjectsList();
-    notify(tr("projSaved", { name }));
+    if (quiet) toast(tr("projAutoSaved", { name }));
+    else notify(tr("projSaved", { name }));
+    return true;
   } catch (err) {
     console.error(err);
     notify(tr("projSaveFailed") + describeError(err), "error");
+    return false;
   }
 }
 
@@ -2326,7 +2901,7 @@ async function loadProjectById(id) {
       }
       appState.cards[kind] = list.filter((c) => cardDuration(c) > 0);
     }
-    appState.cardEditing = { list: "intro", index: appState.cards.intro.length ? 0 : -1 };
+    appState.cardEditing = { list: "intro", index: -1 };
     refreshCardEditor();
     if (p.bgFile) applyBackgroundFile(p.bgFile);
     else clearBackground();
@@ -2349,6 +2924,7 @@ async function loadProjectById(id) {
     }));
     renderAllDiamonds();
     refreshSummary();
+    savedSignature = projectSignature(); // as saved: no changes yet
   } catch (err) {
     console.error(err);
     notify(tr("projLoadFailed") + describeError(err), "error");
@@ -2408,6 +2984,42 @@ async function refreshProjectsList() {
 saveProjectBtn2.addEventListener("click", saveCurrentProject);
 saveProjectBtn3.addEventListener("click", saveCurrentProject);
 
+// The window's close button: an unsaved project is not lost by accident. The main process keeps the window open
+// and asks the page (electron/main.js "close"); the page asks the user; Cancel keeps the app open.
+let closeAsking = false;
+const closeApp = () => {
+  if (window.echo && window.echo.app && window.echo.app.closeNow) window.echo.app.closeNow().catch(() => window.close());
+  else window.close();
+};
+if (window.echo && window.echo.app && window.echo.app.onCloseRequest) {
+  window.echo.app.onCloseRequest(() => {
+    if (isDialogOpen() && !closeAsking) return; // another dialog is open: answer that first
+    if (!isProjectDirty()) closeApp();
+    else askBeforeClose();
+  });
+}
+async function askBeforeClose() {
+  if (closeAsking) return;
+  closeAsking = true;
+  try {
+    const choice = await showDialog({
+      title: tr("unsavedTitle"),
+      message: tr("unsavedMsg", { name: baseNameOfMusic() }),
+      buttons: [
+        { label: tr("cancel"), value: "cancel", kind: "secondary" },
+        { label: tr("unsavedDiscard"), value: "discard", kind: "danger" },
+        { label: tr("unsavedSave"), value: "save", kind: "positive" }
+      ],
+      cancelValue: "cancel"
+    });
+    if (choice === "cancel") return;
+    if (choice === "save" && !(await saveCurrentProject())) return; // not saved: stay open
+    closeApp();
+  } finally {
+    closeAsking = false;
+  }
+}
+
 // =================================================================================================
 // 11) Keyboard shortcuts
 // =================================================================================================
@@ -2420,8 +3032,14 @@ function isTypingTarget(el) {
 
 document.addEventListener("keydown", (e) => {
   if (isDialogOpen()) return;
-  const modalOpen = diamondModal.style.display === "flex" || stripExportModal.style.display === "flex";
+  const modalOpen = diamondModal.style.display === "flex" || stripExportModal.style.display === "flex" ||
+    templateModal.style.display === "flex";
 
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && ["z", "y"].includes(e.key.toLowerCase()) && !modalOpen && !isTypingTarget(e.target)) {
+    e.preventDefault();
+    undoStep(e.key.toLowerCase() === "y" || e.shiftKey ? 1 : -1);
+    return;
+  }
   if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
     e.preventDefault();
     if (!appState.rendering && !modalOpen) saveCurrentProject();
@@ -2430,6 +3048,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && modalOpen) {
     closeDiamondModal();
     stripExportModal.style.display = "none";
+    templateModal.style.display = "none";
     return;
   }
   if (modalOpen || isTypingTarget(e.target)) return;
@@ -2446,6 +3065,8 @@ document.addEventListener("keydown", (e) => {
     } else if (e.key === "End") {
       e.preventDefault();
       seekTo(engine.playEnd);
+    } else if (e.key.toLowerCase() === "t" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!e.repeat) tapTempo();
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
       const dir = e.key === "ArrowRight" ? 1 : -1;
@@ -2484,9 +3105,11 @@ function init() {
   syncBgControls();
   syncAudioControls();
   applyBgTransforms();
+  buildPresetGrid();
+  setInfo(DEFAULT_INFO);
   updateConfigSummary();
   renderAllDiamonds();
-  changeLanguage(languageSelect.value || "tr");
+  changeLanguage(savedLanguage() || "en");
   setStatusKey("readyToRender");
   requestAnimationFrame(refitViewports);
   appInfo().then((info) => {
@@ -2502,7 +3125,7 @@ function init() {
 try {
   init();
 } catch (err) {
-  console.error("Eqo Partitura başlatılamadı:", err);
+  console.error("Eqo Partitura could not start:", err);
 }
 
 // Tell the main process the first complete frame is drawn (fonts in, layout done) — it then fades the window in.

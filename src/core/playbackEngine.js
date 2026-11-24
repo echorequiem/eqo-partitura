@@ -80,6 +80,7 @@ export class PlaybackEngine {
     this.baseBpm = 120;
     this.fermataStretch = DEFAULT_FERMATA_STRETCH;
     this.tempoDiamonds = [];
+    this.tempoWords = null; // rit. / rall. / accel. / a tempo from the score (setTempoWords)
     this.steps = [];
     this.timedSteps = [];
     this.totalDuration = 0; // end of the notes
@@ -132,9 +133,44 @@ export class PlaybackEngine {
     this._recalculateTimings();
   }
 
+  /** Gradual tempo changes from the score's words (core/tempoWords.js): { ramps, resets } in beats. */
+  setTempoWords(tw) {
+    this.tempoWords = tw && (tw.ramps.length || tw.resets.length) ? tw : null;
+    this._recalculateTimings();
+  }
+
+  /**
+   * Tempo factor at a beat from rit. / rall. / accel. (×1 = as written). A ramp goes linearly from the factor
+   * before it to (that × its `to`); the result holds until "a tempo" or a tempo diamond (an absolute tempo).
+   */
+  _factorAt(beat, resetBeats) {
+    const tw = this.tempoWords;
+    if (!tw) return 1;
+    let f = 1;
+    let ri = 0;
+    const resets = resetBeats;
+    for (const r of tw.ramps) {
+      if (r.startBeat > beat) break;
+      // resets between the previous event and this ramp
+      while (ri < resets.length && resets[ri] <= r.startBeat) { f = 1; ri++; }
+      const from = f;
+      const to = from * r.to;
+      if (beat < r.endBeat) {
+        while (ri < resets.length && resets[ri] <= beat) { return 1; }
+        const p = (beat - r.startBeat) / (r.endBeat - r.startBeat);
+        return from + (to - from) * p;
+      }
+      f = to;
+    }
+    while (ri < resets.length && resets[ri] <= beat) { f = 1; ri++; }
+    return f;
+  }
+
   setSteps(steps) {
     this.steps = steps || [];
     this.items = (steps && steps.items) || [];
+    this.keys = (steps && steps.keys) || [];
+    this.measures = (steps && steps.measures) || [];
     this._recalculateTimings();
     this.reset();
   }
@@ -195,11 +231,34 @@ export class PlaybackEngine {
 
     this.timedSteps = [];
     let acc = 0;
+    // rit. / accel. from the score: "a tempo" and every tempo diamond (an absolute tempo) end their effect
+    let resetBeats = [];
+    if (this.tempoWords) {
+      resetBeats = [...this.tempoWords.resets];
+      for (const d of this.tempoDiamonds) {
+        const s = this.steps.find((st) => st.x >= d.xPx);
+        if (s) resetBeats.push(s.beat);
+      }
+      resetBeats.sort((a, b) => a - b);
+    }
+    this._resetBeats = resetBeats;
     for (const step of this.steps) {
       const bpm = this.getBpmAtX(step.x);
       const beats = step.beats > 0 ? step.beats : 1;
       const held = Math.min(beats, step.fermataBeats || 0);
-      const dur = ((beats + held * (this.fermataStretch - 1)) * 60) / bpm;
+      let dur;
+      if (!this.tempoWords) {
+        dur = ((beats + held * (this.fermataStretch - 1)) * 60) / bpm;
+      } else {
+        // a changing tempo inside the step: add it up in small slices
+        const SL = 8;
+        dur = 0;
+        for (let k = 0; k < SL; k++) {
+          const f = this._factorAt(step.beat + ((k + 0.5) / SL) * beats, resetBeats);
+          dur += ((beats / SL) * 60) / (bpm * f);
+        }
+        if (held > 0) dur += (held * (this.fermataStretch - 1) * 60) / (bpm * this._factorAt(step.beat + beats, resetBeats));
+      }
       this.timedSteps.push({ ...step, startTime: acc, endTime: acc + dur });
       acc += dur;
     }
@@ -217,10 +276,94 @@ export class PlaybackEngine {
       return out;
     }).sort((a, b) => a.startTime - b.startTime);
     this.maxItemDuration = this.timedItems.reduce((m, it) => Math.max(m, it.endTime - it.startTime), 0);
+    // note heads in time order (info overlay: notes played so far / total)
+    const onsets = this.timedItems.filter((it) => it.noteCount > 0);
+    this._noteTimes = onsets.map((it) => it.startTime);
+    this._noteCum = [];
+    let sum = 0;
+    for (const it of onsets) { sum += it.noteCount; this._noteCum.push(sum); }
+    this.totalNotes = sum;
+    // per-measure speed: note heads that start in a measure / the measure's length in seconds
+    const mStarts = (this.measures || []).map((b) => this.beatToTime(b));
+    this._measureSpeed = mStarts.map((s, i) => {
+      const e = i + 1 < mStarts.length ? mStarts[i + 1] : acc;
+      if (!(e > s)) return { start: s, end: e, speed: 0 };
+      return { start: s, end: e, speed: (this.notesPlayedAt(e - 1e-6) - this.notesPlayedAt(s - 1e-6)) / (e - s) };
+    });
+    // keyboard view: each key held for its note, let go a moment early so a repeated note is seen again
+    this.timedKeys = (this.keys || []).map((k) => {
+      const startTime = this.beatToTime(k.beat);
+      const end = Math.min(acc, this.beatToTime(k.endBeat));
+      return { midi: k.midi, slot: k.slot, startTime, endTime: Math.max(startTime + 0.04, end - Math.min(0.05, (end - startTime) * 0.15)) };
+    }).sort((a, b) => a.startTime - b.startTime);
+    this.maxKeyDuration = this.timedKeys.reduce((m, k) => Math.max(m, k.endTime - k.startTime), 0);
+    let kLo = Infinity;
+    let kHi = -Infinity;
+    for (const k of this.timedKeys) { kLo = Math.min(kLo, k.midi); kHi = Math.max(kHi, k.midi); }
+    this.keyRange = Number.isFinite(kLo) ? { lo: kLo, hi: kHi } : null;
     this._activeKey = null; // force a refresh of the lit elements
 
     if (!this.isPlaying && before > 0) this.pausedMs = before * acc * 1000;
     if (this.onTick) this.onTick(this.getTime());
+  }
+
+  /** Average speed (note heads per second) of the measure playing at time t; null without measure data. */
+  measureSpeedAt(t) {
+    const ms = this._measureSpeed;
+    if (!ms || !ms.length) return null;
+    let lo = 0;
+    let hi = ms.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (ms[mid].start <= t + 1e-6) lo = mid;
+      else hi = mid - 1;
+    }
+    return ms[lo].speed;
+  }
+
+  /** Keys down at time t: Map midi → staff slot (keyboard view). */
+  keysAt(t) {
+    const keys = this.timedKeys || [];
+    const out = new Map();
+    if (!keys.length || t < 0) return out;
+    let lo = 0;
+    let hi = keys.length;
+    const from = t - (this.maxKeyDuration || 0);
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (keys[mid].startTime < from) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let i = lo; i < keys.length; i++) {
+      const k = keys[i];
+      if (k.startTime > t) break;
+      if (t < k.endTime) out.set(k.midi, k.slot);
+    }
+    return out;
+  }
+
+  /** Note heads that have sounded by time t (chord notes each count). */
+  notesPlayedAt(t) {
+    const times = this._noteTimes || [];
+    let lo = 0;
+    let hi = times.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (times[mid] <= t + 1e-6) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo > 0 ? this._noteCum[lo - 1] : 0;
+  }
+
+  /** Tempo (quarter BPM) heard at time t: diamonds and the score's rit. / accel. included. */
+  tempoAt(t) {
+    const st = this.getStateAtTime(Math.max(0, t));
+    const s = st.step;
+    if (!s) return this.baseBpm;
+    const span = s.endTime - s.startTime;
+    const p = span > 0 ? Math.min(1, Math.max(0, (t - s.startTime) / span)) : 0;
+    const f = this.tempoWords ? this._factorAt(s.beat + p * (s.beats || 0), this._resetBeats || []) : 1;
+    return this.getBpmAtX(s.x) * f;
   }
 
   /** State at time t (s): strip x under the playhead (linear between notes) and the current step. */

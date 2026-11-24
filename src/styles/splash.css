@@ -1,4 +1,4 @@
-/* splash window: Echo Studio ground (Derin #14071E), the coloured seal, Diapason title */
+/* splash window (16:9): the intro canvas fills the whole window (brand/echo-masterworks-intro) */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -11,15 +11,5 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0b090f;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-body {
-  --emi-size: 228px;
-  --emi-title-size: 36px;
-  --emi-title-gap: 14px;
-  --emi-sub-color: #e9ccfb; /* Echo Studio "Işık" */
-  --emi-bg: radial-gradient(ellipse 70% 55% at 50% 38%, rgba(154, 21, 238, 0.16), transparent 70%),
-    radial-gradient(ellipse at 50% 42%, #14071e 0%, #0b090f 60%, #060508 100%);
+  background: #0b0e12; /* the intro's backdrop colour, so nothing flashes before the first frame */
 }

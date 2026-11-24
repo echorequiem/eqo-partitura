@@ -3,7 +3,7 @@
 // IPC handlers check the sender and every argument. Strict CSP on app://; new windows, external navigation,
 // <webview> and permission requests are blocked. Do not loosen any of this.
 
-import { app, BrowserWindow, Menu, net, protocol, session, shell } from "electron";
+import { app, BrowserWindow, Menu, Notification, net, protocol, session, shell } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -148,8 +148,8 @@ function pageUrl(page) {
 function createSplash() {
   const icon = resolveWindowIcon();
   splashWindow = new BrowserWindow({
-    width: 560,
-    height: 440,
+    width: 640, // 16:9 — the Echo Masterworks intro
+    height: 360,
     frame: false,
     resizable: false,
     maximizable: false,
@@ -266,6 +266,23 @@ function createWindow({ withSplash = false } = {}) {
     mainWindow = null;
     closeSplash();
   });
+  // F11: full screen on / off (the release build has no menu that would provide it)
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "F11" && !input.alt && !input.control && !input.meta && !input.shift) {
+      event.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    }
+  });
+  // The close button: the window stays open and the page is asked first (an unsaved project → Save / Don't
+  // save / Cancel). The page answers with "app:close-now" (closeApproved). A page that has crashed or never
+  // loaded cannot answer — then the window simply closes.
+  win.on("close", (event) => {
+    if (win._closeApproved) return;
+    const wc = win.webContents;
+    if (!rendered || wc.isDestroyed() || wc.isCrashed()) return;
+    event.preventDefault();
+    wc.send("app:close-request");
+  });
 
   if (DEV_URL) loadDevUrl(win, pageUrl("index.html"));
   else win.loadURL(pageUrl("index.html"));
@@ -319,6 +336,35 @@ if (!app.requestSingleInstanceLock()) {
     handle("app:ready", isAppUrl, (event) => {
       const w = BrowserWindow.fromWebContents(event.sender);
       if (w) w.emit("echo-ready");
+      return true;
+    });
+    // the page has asked (or had nothing to ask): close its window now
+    handle("app:close-now", isAppUrl, (event) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (w && !w.isDestroyed()) {
+        w._closeApproved = true;
+        setImmediate(() => !w.isDestroyed() && w.close());
+      }
+      return true;
+    });
+    // render progress on the taskbar button (-1 clears it; paused shows the bar yellow)
+    handle("app:progress", isAppUrl, (event, value, mode) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (!w || w.isDestroyed()) return false;
+      const v = Number(value);
+      if (!Number.isFinite(v) || v < 0) w.setProgressBar(-1);
+      else w.setProgressBar(Math.min(1, v), { mode: mode === "paused" ? "paused" : mode === "error" ? "error" : "normal" });
+      return true;
+    });
+    // a system notification when a long job ends while the window is in the background
+    handle("app:notify", isAppUrl, (event, title, body) => {
+      const w = BrowserWindow.fromWebContents(event.sender);
+      if (typeof title !== "string" || typeof body !== "string") return false;
+      if (w && !w.isDestroyed()) w.flashFrame(!w.isFocused());
+      if ((w && w.isFocused()) || !Notification.isSupported()) return false;
+      const n = new Notification({ title: title.slice(0, 120), body: body.slice(0, 300), silent: false });
+      n.on("click", () => { if (w && !w.isDestroyed()) { if (w.isMinimized()) w.restore(); w.focus(); } });
+      n.show();
       return true;
     });
     createSplash(); // the splash starts the main window (startMain)
