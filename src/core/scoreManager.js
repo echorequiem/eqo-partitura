@@ -135,7 +135,7 @@ export class ScoreManager {
       }
       return this.osmd;
     } catch (error) {
-      console.error("OSMD yükleme hatası:", error);
+      console.error("OSMD load error:", error);
       const err = new Error(error && error.message ? error.message : String(error));
       if (isMxl) err.code = "MXL_FAILED";
       throw err;

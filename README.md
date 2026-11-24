@@ -97,7 +97,7 @@ Other scripts:
 - `npm run build` builds the UI bundle only.
 - `npm run web` opens the UI in a normal browser (project saving is off in this mode).
 
-Pushing a tag such as `v1.0.0` makes GitHub Actions build `Eqo-Partitura.exe` and `Eqo-Partitura-x86_64.AppImage`, start the AppImage once as a check, and attach both to a GitHub Release (see `.github/workflows/release.yml`).
+Pushing a tag such as `v1.1.0` makes GitHub Actions build `Eqo-Partitura.exe` and `Eqo-Partitura-x86_64.AppImage`, start the AppImage once as a check, and attach both to a GitHub Release (see `.github/workflows/release.yml`).
 
 ## Contributing
 

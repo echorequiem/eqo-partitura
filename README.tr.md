@@ -97,7 +97,7 @@ Diğer betikler:
 - `npm run build`: yalnızca arayüz paketini derler.
 - `npm run web`: arayüzü normal tarayıcıda açar (bu modda proje kaydetme kapalıdır).
 
-`v1.0.0` gibi bir etiket (tag) gönderildiğinde GitHub Actions `Eqo-Partitura.exe` ve `Eqo-Partitura-x86_64.AppImage` dosyalarını derler, AppImage'ı bir kez açarak dener ve ikisini bir GitHub Release'e ekler (`.github/workflows/release.yml`).
+`v1.1.0` gibi bir etiket (tag) gönderildiğinde GitHub Actions `Eqo-Partitura.exe` ve `Eqo-Partitura-x86_64.AppImage` dosyalarını derler, AppImage'ı bir kez açarak dener ve ikisini bir GitHub Release'e ekler (`.github/workflows/release.yml`).
 
 ## Katkı
 
