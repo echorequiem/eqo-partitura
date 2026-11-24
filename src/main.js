@@ -17,8 +17,8 @@ import * as projectStore from "./platform/projectStore.js";
 import { openVideoSink, saveImages, showInFolder, appInfo } from "./platform/output.js";
 import { alertDialog, confirmDialog, showDialog, isDialogOpen } from "./ui/dialogs.js";
 import { BG_PRESETS, makePresetFile, drawPresetThumb } from "./core/bgPresets.js";
-import { drawKeyboard, keyboardHeight, keyboardRange } from "./core/keyboardOverlay.js";
-import { DEFAULT_INFO, normalizeInfo, drawInfoOverlay, infoValues, infoActive, ensureInfoFont, meanLuma } from "./core/infoOverlay.js";
+import { drawKeyboard, keyboardHeight, keyboardRange, scoreShift } from "./core/keyboardOverlay.js";
+import { DEFAULT_INFO, normalizeInfo, drawInfoOverlay, infoValues, infoActive, infoReserve, ensureInfoFont, meanLuma } from "./core/infoOverlay.js";
 import { Sfx } from "./ui/sound.js";
 import { createLangPicker } from "./ui/langPicker.js";
 import { createRenderSpinner } from "./ui/renderSpinner.js";
@@ -28,7 +28,7 @@ import { createRenderSpinner } from "./ui/renderSpinner.js";
 // =================================================================================================
 const $ = (id) => {
   const el = document.getElementById(id);
-  if (!el) throw new Error(`index.html içinde #${id} bulunamadı`);
+  if (!el) throw new Error(`#${id} not found in index.html`);
   return el;
 };
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -555,6 +555,7 @@ function measureLayout() {
   const svgRect = svg.getBoundingClientRect();
   const cRect = osmdContainer.getBoundingClientRect();
   if (!svgRect.width || !svgRect.height) return appState.layout;
+  const box = scoreContentBox(svg);
 
   appState.layout = {
     viewportW: viewportEl.clientWidth,
@@ -562,7 +563,9 @@ function measureLayout() {
     svgW: svgRect.width,
     svgH: svgRect.height,
     containerH: osmdContainer.offsetHeight || cRect.height,
-    svgOffsetTop: svgRect.top - cRect.top
+    svgOffsetTop: svgRect.top - cRect.top,
+    contentTop: box.top, // the drawing inside the SVG (px from its top) and its height
+    contentH: box.height
   };
   return appState.layout;
 }
@@ -1720,6 +1723,7 @@ async function ensureScoreLoaded() {
       try { applyScoreMeta(sheet && sheet.TitleString, sheet && sheet.ComposerString); } catch (_) { /* optional */ }
     }
     appState.isScoreLoaded = true;
+    syncKeyboardShift();
     undoReset();
   } finally {
     setScoreLoading(false);
@@ -1737,7 +1741,7 @@ nextToPage3Btn.addEventListener("click", async () => {
     refitViewports();
     measureLayout();
   } catch (err) {
-    console.error("Nota yükleme hatası:", err);
+    console.error("Score load error:", err);
     goToPage(2);
     notify(tr("scoreLoadFailed") + describeError(err), "error");
   } finally {
@@ -1884,9 +1888,43 @@ function setKeyboard(on) {
   syncKeyboardShift();
   drawInfoPreview(engine.getTime());
 }
+/**
+ * Where the drawn score sits inside its SVG (screen px from the SVG's top): OSMD's SVG is taller than the
+ * staves, notes and marks it holds, so the clearance rules use the drawing's own box.
+ */
+function scoreContentBox(svg) {
+  const r = svg.getBoundingClientRect();
+  try {
+    const b = svg.getBBox();
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    if (vb && vb.height > 0 && b.height > 0) {
+      const sy = r.height / vb.height;
+      return { top: (b.y - vb.y) * sy, height: b.height * sy };
+    }
+  } catch (_) { /* not rendered yet */ }
+  return { top: 0, height: r.height };
+}
+
+// the score moves only as far as needed to clear the keyboard and the live info (same rule as the render)
 function syncKeyboardShift() {
-  const h = appState.keyboard ? keyboardHeight(viewportEl.clientWidth, viewportEl.clientHeight) : 0;
-  viewportEl.style.setProperty("--kb-shift", `${Math.round(h / 2)}px`);
+  const W = viewportEl.clientWidth;
+  const H = viewportEl.clientHeight;
+  const kb = appState.keyboard ? keyboardHeight(W, H) : 0;
+  const room = infoActive(appState.info) ? infoReserve(W, H - kb, appState.info) : { top: 0, bottom: 0 };
+  let shift = 0;
+  const svg = osmdContainer.querySelector("svg");
+  const cH = osmdContainer.offsetHeight;
+  if (H > 0 && svg && cH && (kb > 0 || room.top > 0 || room.bottom > 0)) {
+    const s = svg.getBoundingClientRect();
+    const c = osmdContainer.getBoundingClientRect();
+    if (s.height && c.height) {
+      const f = cH / c.height; // unscaled px (a zoom drag scales the track)
+      const box = scoreContentBox(svg);
+      const top = H / 2 - cH / 2 + (s.top - c.top + box.top) * f;
+      shift = scoreShift(H, room.top, kb + room.bottom, top, top + box.height * f);
+    }
+  }
+  viewportEl.style.setProperty("--score-shift", `${shift}px`);
 }
 keyboardToggle.addEventListener("change", (e) => setKeyboard(e.target.checked));
 
@@ -1942,8 +1980,9 @@ async function applyZoom() {
     osmdContainer.style.transform = "";
     await nextFrame();
     rebuildTimeline(); // same musical timing, new x positions
+    syncKeyboardShift(); // a taller or shorter score needs more or less room above the keyboard
   } catch (err) {
-    console.error("Zoom hatası:", err);
+    console.error("Zoom error:", err);
     notify(tr("scoreLoadFailed") + describeError(err), "error");
   } finally {
     zoomBusy = false;
@@ -2355,7 +2394,7 @@ renderBtn.addEventListener("click", async () => {
       renderPct.textContent = "0%";
       setStatusText(tr("renderCancelled"));
     } else {
-      console.error("Render hatası:", err);
+      console.error("Render error:", err);
       setStatusText(tr("renderFailed") + describeError(err), "error");
       systemNotify(tr("notifyFailTitle"), describeError(err));
     }
@@ -2466,7 +2505,7 @@ async function buildFinalPreview() {
       updateFinalUi();
       return player;
     } catch (err) {
-      console.error("Önizleme hatası:", err);
+      console.error("Preview error:", err);
       notify(tr("finalPreviewFailed") + describeError(err), "error");
       return null;
     } finally {
@@ -2539,6 +2578,7 @@ function setInfo(info) {
   infoNotesToggle.checked = appState.info.notes;
   infoSpeedToggle.checked = appState.info.speed;
   activatePill(infoCornerButtons, "corner", appState.info.corner);
+  syncKeyboardShift();
   appState.infoLabels = infoLabels();
   if (infoActive(appState.info)) ensureInfoFont().then(() => drawInfoPreview(engine.getTime()));
   drawInfoPreview(engine.getTime());
@@ -3053,7 +3093,7 @@ function init() {
 try {
   init();
 } catch (err) {
-  console.error("Eqo Partitura başlatılamadı:", err);
+  console.error("Eqo Partitura could not start:", err);
 }
 
 // Tell the main process the first complete frame is drawn (fonts in, layout done) — it then fades the window in.

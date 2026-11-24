@@ -7,8 +7,8 @@ import { Muxer as WebmMuxer, StreamTarget as WebmStreamTarget } from "webm-muxer
 import { pickAudioEncoder, AudioTrackEncoder, audioEndTime, renderAudioTracks, AUDIO_SAMPLE_RATE, AUDIO_CHANNELS } from "./audioEngine.js";
 import { PngStreamEncoder } from "./pngEncoder.js";
 import { drawCard, ensureCardFonts, cardPhaseAt, cardVideoOffset } from "./titleCards.js";
-import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont, infoCornerBox, meanLuma } from "./infoOverlay.js";
-import { drawKeyboard, keyboardHeight, keyboardRange } from "./keyboardOverlay.js";
+import { drawInfoOverlay, normalizeInfo, infoValues, infoActive, ensureInfoFont, infoCornerBox, infoReserve, meanLuma } from "./infoOverlay.js";
+import { drawKeyboard, keyboardHeight, keyboardRange, scoreShift } from "./keyboardOverlay.js";
 
 /** The card of a list that covers list-local time t. */
 const partAt = (list, t) => {
@@ -1068,11 +1068,17 @@ export class RenderEngine {
 
       const bodyStyle = getComputedStyle(document.body);
       const secondColor = this.appState.dualColor ? this.appState.activeColor2 || activeColor : activeColor;
+      // the score keeps clear of the keyboard and the live info (same rule as the preview: scoreShift)
+      const kbOut = this.appState.keyboard ? keyboardHeight(W, H) : 0;
+      const infoRoom = infoActive(this.appState.info) ? infoReserve(W, H - kbOut, normalizeInfo(this.appState.info)) : { top: 0, bottom: 0 };
+      const scoreTop0 = H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k;
+      const drawnTop = scoreTop0 + (layout.contentH > 0 ? layout.contentTop : 0) * k; // the drawing, not the SVG box
+      const drawnH = (layout.contentH > 0 ? layout.contentH : layout.svgH) * k;
+      const shift = scoreShift(H, infoRoom.top, kbOut + infoRoom.bottom, drawnTop, drawnTop + drawnH);
       const f = {
         W, H, k, fps, canvas, ctx, tmp, tmpCtx, raster, bg, activeColor, realtime,
         colors: [activeColor, secondColor], // glow colour per staff slot (0 = first staff, 1 = others)
-        svgTop: Math.round(H / 2 - (layout.containerH * k) / 2 + layout.svgOffsetTop * k) -
-          (this.appState.keyboard ? Math.round(keyboardHeight(W, H) / 2) : 0),
+        svgTop: Math.round(scoreTop0) + shift,
         keyboard: this.appState.keyboard
           ? { range: keyboardRange(this.playbackEngine.keyRange && this.playbackEngine.keyRange.lo, this.playbackEngine.keyRange && this.playbackEngine.keyRange.hi, W / H) }
           : null,

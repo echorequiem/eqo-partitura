@@ -911,6 +911,6 @@ label.row { cursor: pointer; }
 .tap-bpm { flex: 1; text-align: center; font-size: var(--fs-sm); }
 .tap-btn.tapped { transform: scale(0.96); }
 /* keyboard view: the score moves up by half the keyboard's height (same as the render) */
-.viewport.has-keyboard .score-track { top: calc(50% - var(--kb-shift, 0px)); }
+.viewport .score-track { top: calc(50% + var(--score-shift, 0px)); } /* clear of keyboard and live info */
 .app-toast { position: fixed; left: 50%; bottom: 84px; z-index: 10000; transform: translate(-50%, 8px); padding: 8px 16px; border-radius: 10px; font-size: var(--fs-sm); opacity: 0; pointer-events: none; transition: opacity 0.18s ease, transform 0.18s ease; }
 .app-toast.show { opacity: 1; transform: translate(-50%, 0); }

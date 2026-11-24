@@ -72,6 +72,28 @@ export function infoValues(pb, t) {
  * @param labels  { notes, speed, perSecond, tempo } in the interface language
  * @param tone    "light" type for dark pictures (default), "dark" type for light ones (paper, beige, white…)
  */
+/** Size and place of the text block for n lines on a W × H frame (shared by drawing and infoReserve). */
+function blockMetrics(W, H, n) {
+  const u = Math.min(W, H) / 1080; // 1 at 1080p
+  const big = 64 * u; // the first line
+  const small = 42 * u; // the others
+  const lead = 1.08;
+  const sizes = Array.from({ length: n }, (_, i) => (i === 0 ? big : small));
+  return { u, lead, sizes, marginX: 56 * u, marginY: 44 * u, blockH: sizes.reduce((a, s) => a + s * lead, 0) };
+}
+
+/**
+ * Room the live info takes at the top or bottom of a W × H frame (px, with a small gap), so the score can stay
+ * clear of it: { top, bottom } — one of them is 0.
+ */
+export function infoReserve(W, H, info) {
+  if (!infoActive(info)) return { top: 0, bottom: 0 };
+  const n = (info.notes ? 1 : 0) + (info.speed ? 1 : 0) + (info.bpm ? 1 : 0);
+  const m = blockMetrics(W, H, n);
+  const room = Math.ceil(m.marginY + m.blockH + 14 * m.u);
+  return info.corner === "bl" || info.corner === "br" ? { top: 0, bottom: room } : { top: room, bottom: 0 };
+}
+
 export function drawInfoOverlay(ctx, W, H, info, vals, labels = {}, tone = "light") {
   const dark = tone === "dark";
   if (!infoActive(info) || !vals) return;
@@ -82,16 +104,9 @@ export function drawInfoOverlay(ctx, W, H, info, vals, labels = {}, tone = "ligh
   if (info.bpm && Number.isFinite(vals.bpm)) lines.push(`${L.tempo}: ♩ ${Math.round(vals.bpm)}`);
   if (!lines.length) return;
 
-  const u = Math.min(W, H) / 1080; // 1 at 1080p
-  const big = 64 * u; // the first line
-  const small = 42 * u; // the others
-  const lead = 1.08;
-  const marginX = 56 * u;
-  const marginY = 44 * u;
+  const { u, lead, sizes, marginX, marginY, blockH } = blockMetrics(W, H, lines.length);
   const right = info.corner === "tr" || info.corner === "br";
   const bottom = info.corner === "bl" || info.corner === "br";
-  const sizes = lines.map((_, i) => (i === 0 ? big : small));
-  const blockH = sizes.reduce((a, s) => a + s * lead, 0);
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);

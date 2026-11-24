@@ -3,8 +3,8 @@
 // shade (a front face, a bevel on the black keys, the shadow they cast) for depth — nothing that shines.
 // Every edge sits on a whole pixel, all white keys are equally wide and every black key sits exactly in the
 // middle of its two white keys, so the keyboard is even and sharp at any size. Drawn by the same function in
-// the page-3 preview (the overlay canvas over the stage) and in the render, so both look alike. The score moves
-// up by half the keyboard's height so the two never overlap.
+// the page-3 preview (the overlay canvas over the stage) and in the render, so both look alike. The score stays
+// centred and moves only as far as it must to clear the keyboard and the live info (scoreShift).
 // Speed: the keys are painted once into cached strips (all up; all white keys down; all black keys down, per
 // staff colour) and each frame only copies the pressed keys' columns over the resting keyboard — a few image
 // copies instead of hundreds of gradient fills, so the keyboard costs the render almost nothing.
@@ -17,6 +17,22 @@ const C8 = 108;
 /** Height of the keyboard band for a W × H frame (px). */
 export function keyboardHeight(W, H) {
   return Math.round(Math.min(H * 0.17, W * 0.12));
+}
+
+/**
+ * How far the centred score moves down (+) or up (−) to stay clear of what sits above it (the live info in a top
+ * corner: topRoom) and below it (the keyboard, the live info in a bottom corner: bottomRoom) — only as far as
+ * needed. A score taller than the free band is centred in it. top / bottom: the centred score's edges (px).
+ */
+export function scoreShift(H, topRoom, bottomRoom, top, bottom) {
+  if (!Number.isFinite(top) || !Number.isFinite(bottom)) return 0;
+  const lo = Math.max(0, topRoom || 0);
+  const hi = H - Math.max(0, bottomRoom || 0);
+  if (!(lo > 0) && !(hi < H)) return 0;
+  if (bottom - top > hi - lo) return Math.round((lo + hi) / 2 - (top + bottom) / 2);
+  if (bottom > hi) return Math.round(hi - bottom);
+  if (top < lo) return Math.round(lo - top);
+  return 0;
 }
 
 /**
